@@ -1,5 +1,5 @@
 import { pseudoRandomBytes } from "crypto";
-import * as params from "./lib/params";
+import * as params from "../lib/params";
 // import Peer from "./peer";
 // import PeerGroup from "./peerGroup.js";
 import { Peer, PeerGroup } from "bitcoin-net";
@@ -9,7 +9,7 @@ const GENESIS_BLOCK_HASH =
 
 const peerGroup = new PeerGroup(params);
 
-peerGroup.on("peer", (peer: Peer) => {
+peerGroup.on("peer", (peer: any) => {
   console.log("connected to peer", peer.socket.remoteAddress);
 
   // console.log(peer);

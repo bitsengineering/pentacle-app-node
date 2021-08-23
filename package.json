@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "npm start"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "peers": "tsc */**.ts && node src/peers.js",
+    "peer": "tsc */**.ts && node src/peer.js",
+    "start": "tsc */**.ts && node src/index.js"
   },
   "keywords": [
     "bitcoin",
