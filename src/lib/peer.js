@@ -11,7 +11,7 @@ const u = require("bitcoin-util");
 const wrapEvents = require("event-cleanup");
 const through = require("through2").obj;
 const EventEmitter = require("events");
-const pkg = require("../package.json");
+const pkg = require("../../package.json");
 const utils = require("./utils.js");
 
 const SERVICES_SPV = Buffer.from("0800000000000000", "hex");

@@ -1,8 +1,8 @@
 import { pseudoRandomBytes } from "crypto";
-import * as params from "../lib/params";
+import * as params from "./lib/params";
 // import Peer from "./peer";
 // import PeerGroup from "./peerGroup.js";
-import { Peer, PeerGroup } from "bitcoin-net";
+import { PeerGroup } from "bitcoin-net";
 
 const GENESIS_BLOCK_HASH =
   "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";

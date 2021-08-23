@@ -1,11 +1,7 @@
-"use strict";
-exports.__esModule = true;
-exports.dnsSeeds = exports.defaultPort = exports.magic = void 0;
-var magic = 0xd9b4bef9;
-exports.magic = magic;
-var defaultPort = 8333;
-exports.defaultPort = defaultPort;
-var dnsSeeds = [
+const magic = 0xd9b4bef9;
+const defaultPort = 8333;
+
+const dnsSeeds = [
   "seed.bitcoin.sipa.be",
   "dnsseed.bluematt.me",
   "dnsseed.bitcoin.dashjr.org",
@@ -14,11 +10,11 @@ var dnsSeeds = [
   "bitseed.xf2.org",
   "seed.bitcoin.jonasschnelli.ch",
 ];
-exports.dnsSeeds = dnsSeeds;
-var webSeeds = [
+const webSeeds = [
   "wss://us-west.seed.webcoin.io:8192",
   // TODO: add more
 ];
+
 // definition of the genesis block's header
 var genesisHeader = {
   height: 0,
@@ -29,6 +25,7 @@ var genesisHeader = {
   bits: 0x1d00ffff,
   nonce: 2083236893,
 };
+
 // selected block headers for verifying initial sync
 var checkpoints = [
   {
@@ -41,3 +38,5 @@ var checkpoints = [
     height: 560448,
   },
 ];
+
+export { magic, defaultPort, dnsSeeds /* , webSeeds */ };
