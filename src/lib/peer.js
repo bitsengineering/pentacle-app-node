@@ -1,428 +1,413 @@
 "use strict";
-
-import crypto from "crypto";
-const Debug = require("debug");
-const debug = Debug("bitcoin-net:peer");
-debug.rx = Debug("bitcoin-net:messages:rx");
-debug.tx = Debug("bitcoin-net:messages:tx");
-const proto = require("bitcoin-protocol");
-const INV = proto.constants.inventory;
-const u = require("bitcoin-util");
-const wrapEvents = require("event-cleanup");
-const through = require("through2").obj;
-const EventEmitter = require("events");
-const pkg = require("../../package.json");
-const utils = require("./utils.js");
-
-const SERVICES_SPV = Buffer.from("0800000000000000", "hex");
-const SERVICES_FULL = Buffer.from("0100000000000000", "hex");
-const BLOOMSERVICE_VERSION = 70011;
-
-const LATENCY_EXP = 0.5; // coefficient used for latency exponential average
-const INITIAL_PING_N = 4; // send this many pings when we first connect
-const INITIAL_PING_INTERVAL = 250; // wait this many ms between initial pings
-const MIN_TIMEOUT = 4000; // lower bound for timeouts (in case latency is low)
-
-const serviceBits = {
-  NODE_NETWORK: 0,
-  NODE_GETUTXO: 1,
-  NODE_BLOOM: 2,
-  NODE_WITNESS: 3,
-  NODE_NETWORK_LIMITED: 10,
-};
+var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+exports.__esModule = true;
+exports.Peer = void 0;
+var crypto_1 = require("crypto");
+var bitcoin_protocol_1 = require("bitcoin-protocol");
+var bitcoin_util_1 = require("bitcoin-util");
+var event_cleanup_1 = require("event-cleanup");
+var through2_1 = require("through2");
+var utils_1 = require("./utils");
+var package_json_1 = require("../../package.json");
+var events_1 = require("events");
+var debug_1 = require("debug");
+var INV = bitcoin_protocol_1["default"].constants.inventory;
+var SERVICES_SPV = Buffer.from("0800000000000000", "hex");
+var SERVICES_FULL = Buffer.from("0100000000000000", "hex");
+var BLOOMSERVICE_VERSION = 70011;
+var LATENCY_EXP = 0.5; // coefficient used for latency exponential average
+var INITIAL_PING_N = 4; // send this many pings when we first connect
+var INITIAL_PING_INTERVAL = 250; // wait this many ms between initial pings
+var MIN_TIMEOUT = 4000; // lower bound for timeouts (in case latency is low)
+var serviceBits = [
+    { key: "NODE_NETWORK", value: 0 },
+    { key: "NODE_GETUTXO", value: 1 },
+    { key: "NODE_BLOOM", value: 2 },
+    { key: "NODE_WITNESS", value: 3 },
+    { key: "NODE_NETWORK_LIMITED", value: 10 },
+];
 function getServices(buf) {
-  let services = {};
-  for (let name in serviceBits) {
-    let byteIndex = Math.floor(serviceBits[name] / 8);
-    let byte = buf.readUInt32LE(byteIndex);
-    let bitIndex = serviceBits[name] % 8;
-    if (byte & (1 << bitIndex)) {
-      services[name] = true;
-    }
-  }
-  return services;
-}
-
-const debugStream = (f) =>
-  through((message, enc, cb) => {
-    f(message);
-    cb(null, message);
-  });
-
-module.exports = class Peer extends (
-  EventEmitter
-) {
-  constructor(params, opts = {}) {
-    utils.assertParams(params);
-
-    super();
-
-    this.params = params;
-    this.protocolVersion = params.protocolVersion || 70012;
-    this.minimumVersion = params.minimumVersion || 70001;
-    this.requireBloom = opts.requireBloom && true;
-    this.userAgent = opts.userAgent;
-    if (!opts.userAgent) {
-      if (process.browser) this.userAgent = `/${navigator.userAgent}/`;
-      else this.userAgent = `/node.js:${process.versions.node}/`;
-      this.userAgent += `${pkg.name}:${pkg.version}/`;
-    }
-    if (opts.subUserAgent) this.userAgent += opts.subUserAgent;
-    this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000;
-    this.getTip = opts.getTip;
-    this.relay = opts.relay || false;
-    this.pingInterval = opts.pingInterval || 15 * 1000;
-    this.version = null;
-    this.services = null;
-    this.socket = null;
-    this.ready = false;
-    this._handshakeTimeout = null;
-    this.disconnected = false;
-    this.latency = 2 * 1000; // default to 2s
-
-    this.getHeadersQueue = [];
-    this.gettingHeaders = false;
-
-    this.setMaxListeners(200);
-
-    if (opts.socket) this.connect(opts.socket);
-  }
-
-  send(command, payload) {
-    // TODO?: maybe this should error if we try to write after close?
-    if (!this.socket.writable) return;
-    this._encoder.write({ command, payload });
-  }
-
-  connect(socket) {
-    if (!socket || !socket.readable || !socket.writable) {
-      throw new Error("Must specify socket duplex stream");
-    }
-    this.socket = socket;
-    socket.once("close", () => {
-      this.disconnect(new Error("Socket closed"));
-    });
-    socket.on("error", this._error.bind(this));
-
-    var protocolOpts = {
-      magic: this.params.magic,
-      messages: this.params.messages,
-    };
-
-    var decoder = proto.createDecodeStream(protocolOpts);
-    decoder.on("error", this._error.bind(this));
-    this._decoder = debugStream(debug.rx);
-    socket.pipe(decoder).pipe(this._decoder);
-
-    this._encoder = debugStream(debug.tx);
-    let encoder = proto.createEncodeStream(protocolOpts);
-    this._encoder.pipe(encoder).pipe(socket);
-
-    // timeout if handshake doesn't finish fast enough
-    if (this.handshakeTimeout) {
-      this._handshakeTimeout = setTimeout(() => {
-        this._handshakeTimeout = null;
-        this._error(new Error("Peer handshake timed out"));
-      }, this.handshakeTimeout);
-      this.once("ready", () => {
-        clearTimeout(this._handshakeTimeout);
-        this._handshakeTimeout = null;
-      });
-    }
-
-    // set up ping interval and initial pings
-    this.once("ready", () => {
-      this._pingInterval = setInterval(this.ping.bind(this), this.pingInterval);
-      for (var i = 0; i < INITIAL_PING_N; i++) {
-        setTimeout(this.ping.bind(this), INITIAL_PING_INTERVAL * i);
-      }
-    });
-
-    this._registerListeners();
-    this._sendVersion();
-  }
-
-  disconnect(err) {
-    if (this.disconnected) return;
-    this.disconnected = true;
-    if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout);
-    clearInterval(this._pingInterval);
-    this.socket.end();
-    this.emit("disconnect", err);
-  }
-
-  ping(cb) {
-    var start = Date.now();
-    var nonce = crypto.pseudoRandomBytes(8);
-    var onPong = (pong) => {
-      if (pong.nonce.compare(nonce) !== 0) return;
-      this.removeListener("pong", onPong);
-      var elapsed = Date.now() - start;
-      this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
-      if (cb) cb(null, elapsed, this.latency);
-    };
-    this.on("pong", onPong);
-    this.send("ping", { nonce });
-  }
-
-  _error(err) {
-    this.emit("error", err);
-    this.disconnect(err);
-  }
-
-  _registerListeners() {
-    this._decoder.on("error", this._error.bind(this));
-    this._decoder.on("data", (message) => {
-      this.emit("message", message);
-      this.emit(message.command, message.payload);
-    });
-
-    this._encoder.on("error", this._error.bind(this));
-
-    this.on("version", this._onVersion);
-    this.on("verack", () => {
-      if (this.ready) return this._error(new Error("Got duplicate verack"));
-      this.verack = true;
-      this._maybeReady();
-    });
-
-    this.on("ping", (message) => this.send("pong", message));
-
-    this.on("block", (block) => {
-      this.emit(
-        `block:${utils.getBlockHash(block.header).toString("base64")}`,
-        block
-      );
-    });
-    this.on("merkleblock", (block) => {
-      this.emit(
-        `merkleblock:${utils.getBlockHash(block.header).toString("base64")}`,
-        block
-      );
-    });
-    this.on("tx", (tx) => {
-      this.emit(`tx:${utils.getTxHash(tx).toString("base64")}`, tx);
-    });
-  }
-
-  _onVersion(message) {
-    this.services = getServices(message.services);
-    if (!this.services.NODE_NETWORK) {
-      return this._error(
-        new Error("Node does not provide NODE_NETWORK service")
-      );
-    }
-    this.version = message;
-    if (message.version < this.minimumVersion) {
-      return this._error(
-        new Error(
-          "Peer is using an incompatible protocol version: " +
-            `required: >= ${this.minimumVersion}, actual: ${message.version}`
-        )
-      );
-    }
-    if (
-      this.requireBloom &&
-      message.version >= BLOOMSERVICE_VERSION &&
-      !this.services.NODE_BLOOM
-    ) {
-      return this._error(new Error("Node does not provide NODE_BLOOM service"));
-    }
-    this.send("verack");
-    this._maybeReady();
-  }
-
-  _maybeReady() {
-    if (!this.verack || !this.version) return;
-    this.ready = true;
-    this.emit("ready");
-  }
-
-  _onceReady(cb) {
-    if (this.ready) return cb();
-    this.once("ready", cb);
-  }
-
-  _sendVersion() {
-    this.send("version", {
-      version: this.protocolVersion,
-      services: SERVICES_SPV,
-      timestamp: Math.round(Date.now() / 1000),
-      receiverAddress: {
-        services: SERVICES_FULL,
-        address: this.socket.remoteAddress || "0.0.0.0",
-        port: this.socket.remotePort || 0,
-      },
-      senderAddress: {
-        services: SERVICES_SPV,
-        address: "0.0.0.0",
-        port: this.socket.localPort || 0,
-      },
-      nonce: crypto.pseudoRandomBytes(8),
-      userAgent: this.userAgent,
-      startHeight: this.getTip ? this.getTip().height : 0,
-      relay: this.relay,
-    });
-  }
-
-  _getTimeout() {
-    return MIN_TIMEOUT + this.latency * 10;
-  }
-
-  getBlocks(hashes, opts, cb) {
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    }
-    if (opts.timeout == null) opts.timeout = this._getTimeout();
-
-    var timeout;
-    var events = wrapEvents(this);
-    var output = new Array(hashes.length);
-    var remaining = hashes.length;
-    hashes.forEach((hash, i) => {
-      var event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
-        "base64"
-      )}`;
-      events.once(event, (block) => {
-        output[i] = block;
-        remaining--;
-        if (remaining > 0) return;
-        if (timeout != null) clearTimeout(timeout);
-        cb(null, output);
-      });
-    });
-
-    var inventory = hashes.map((hash) => ({
-      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-      hash,
-    }));
-    this.send("getdata", inventory);
-
-    if (!opts.timeout) return;
-    timeout = setTimeout(() => {
-      debug(
-        `getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`
-      );
-      events.removeAll();
-      var error = new Error("Request timed out");
-      error.timeout = true;
-      cb(error);
-    }, opts.timeout);
-  }
-
-  getTransactions(blockHash, txids, opts, cb) {
-    if (Array.isArray(blockHash)) {
-      cb = opts;
-      opts = txids;
-      txids = blockHash;
-      blockHash = null;
-    }
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    }
-
-    var output = new Array(txids.length);
-
-    if (blockHash) {
-      var txIndex = {};
-      txids.forEach((txid, i) => {
-        txIndex[txid.toString("base64")] = i;
-      });
-      this.getBlocks([blockHash], opts, (err, blocks) => {
-        if (err) return cb(err);
-        for (var tx of blocks[0].transactions) {
-          var id = utils.getTxHash(tx).toString("base64");
-          var i = txIndex[id];
-          if (i == null) continue;
-          delete txIndex[id];
-          output[i] = tx;
+    var services = {};
+    serviceBits.forEach(function (sr, index) {
+        var byteIndex = Math.floor(sr.value / 8);
+        var byte = buf.readUInt32LE(byteIndex);
+        var bitIndex = sr.value % 8;
+        if (byte & (1 << bitIndex)) {
+            services[name] = true;
         }
-        cb(null, output);
-      });
-    } else {
-      if (opts.timeout == null) opts.timeout = this._getTimeout();
-      // TODO: make a function for all these similar timeout request methods
-
-      var timeout;
-      var remaining = txids.length;
-      var events = wrapEvents(this);
-      txids.forEach((txid, i) => {
-        var hash = txid.toString("base64");
-        this.once(`tx:${hash}`, (tx) => {
-          output[i] = tx;
-          remaining--;
-          if (remaining > 0) return;
-          if (timeout != null) clearTimeout(timeout);
-          cb(null, output);
-        });
-      });
-
-      var inventory = txids.map((hash) => ({ type: INV.MSG_TX, hash }));
-      this.send("getdata", inventory);
-
-      if (!opts.timeout) return;
-      timeout = setTimeout(() => {
-        debug(
-          `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
-        );
-        events.removeAll();
-        var err = new Error("Request timed out");
-        err.timeout = true;
-        cb(err);
-      }, opts.timeout);
-    }
-  }
-
-  getHeaders(locator, opts, cb) {
-    if (this.gettingHeaders) {
-      this.getHeadersQueue.push({ locator, opts, cb });
-      debug(
-        `queued "getHeaders" request: queue size=${this.getHeadersQueue.length}`
-      );
-      return;
-    }
-    this.gettingHeaders = true;
-
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    } else if (typeof locator === "function") {
-      cb = locator;
-      opts = {};
-      locator = [];
-    }
-
-    opts.stop = opts.stop || u.nullHash;
-    opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
-    var timeout;
-    var onHeaders = (headers) => {
-      if (timeout) clearTimeout(timeout);
-      cb(null, headers);
-      this._nextHeadersRequest();
-    };
-    this.once("headers", onHeaders);
-    this.send("getheaders", {
-      version: this.protocolVersion,
-      locator,
-      hashStop: opts.stop,
     });
-    if (!opts.timeout) return;
-    timeout = setTimeout(() => {
-      debug(`getHeaders timed out: ${opts.timeout} ms`);
-      this.removeListener("headers", onHeaders);
-      var error = new Error("Request timed out");
-      error.timeout = true;
-      cb(error);
-      this._nextHeadersRequest();
-    }, opts.timeout);
-  }
-
-  _nextHeadersRequest() {
-    this.gettingHeaders = false;
-    if (this.getHeadersQueue.length === 0) return;
-    var req = this.getHeadersQueue.shift();
-    this.getHeaders(req.locator, req.opts, req.cb);
-  }
+    return services;
+}
+var debugStream = function (f) {
+    return through2_1["default"](function (message, enc, cb) {
+        f(message);
+        cb(null, message);
+    });
 };
+var Peer = /** @class */ (function (_super) {
+    __extends(Peer, _super);
+    function Peer(params, opts) {
+        var _this = this;
+        utils_1.assertParams(params);
+        _this = _super.call(this) || this;
+        _this.params = params;
+        _this.protocolVersion = params.protocolVersion || 70012;
+        _this.minimumVersion = params.minimumVersion || 70001;
+        _this.requireBloom = opts.requireBloom && true;
+        _this.userAgent = opts.userAgent;
+        if (!opts.userAgent) {
+            if (process.browser)
+                _this.userAgent = "/" + navigator.userAgent + "/";
+            else
+                _this.userAgent = "/node.js:" + process.versions.node + "/";
+            _this.userAgent += package_json_1["default"].name + ":" + package_json_1["default"].version + "/";
+        }
+        if (opts.subUserAgent)
+            _this.userAgent += opts.subUserAgent;
+        _this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000;
+        _this.getTip = opts.getTip;
+        _this.relay = opts.relay || false;
+        _this.pingInterval = opts.pingInterval || 15 * 1000;
+        _this.version = null;
+        _this.services = null;
+        _this.socket = null;
+        _this.relay = false;
+        _this._handshakeTimeout = null;
+        _this.disconnected = false;
+        _this.latency = 2 * 1000; // default to 2s
+        _this.getHeadersQueue = [];
+        _this.gettingHeaders = false;
+        _this.verack = false;
+        _this._pingInterval = window.setInterval;
+        _this.setMaxListeners(200);
+        if (opts.socket)
+            _this.connect(opts.socket);
+        return _this;
+    }
+    Peer.prototype.send = function (command, payload) {
+        // TODO?: maybe this should error if we try to write after close?
+        if (!this.socket.writable)
+            return;
+        this._encoder.write({ command: command, payload: payload });
+    };
+    Peer.prototype.connect = function (socket) {
+        var _this = this;
+        if (!socket || !socket.readable || !socket.writable) {
+            throw new Error("Must specify socket duplex stream");
+        }
+        this.socket = socket;
+        socket.once("close", function () {
+            _this.disconnect(new Error("Socket closed"));
+        });
+        socket.on("error", this._error.bind(this));
+        var protocolOpts = {
+            magic: this.params.magic,
+            messages: this.params.messages
+        };
+        var decoder = bitcoin_protocol_1["default"].createDecodeStream(protocolOpts);
+        decoder.on("error", this._error.bind(this));
+        this._decoder = debugStream(debug_1["default"].rx);
+        socket.pipe(decoder).pipe(this._decoder);
+        this._encoder = debugStream(debug_1["default"].tx);
+        var encoder = bitcoin_protocol_1["default"].createEncodeStream(protocolOpts);
+        this._encoder.pipe(encoder).pipe(socket);
+        // timeout if handshake doesn't finish fast enough
+        if (this.handshakeTimeout) {
+            this._handshakeTimeout = setTimeout(function () {
+                _this._handshakeTimeout = null;
+                _this._error(new Error("Peer handshake timed out"));
+            }, this.handshakeTimeout);
+            this.once("ready", function () {
+                clearTimeout(_this._handshakeTimeout);
+                _this._handshakeTimeout = null;
+            });
+        }
+        // set up ping interval and initial pings
+        this.once("ready", function () {
+            _this._pingInterval = setInterval(_this.ping.bind(_this), _this.pingInterval);
+            for (var i = 0; i < INITIAL_PING_N; i++) {
+                setTimeout(_this.ping.bind(_this), INITIAL_PING_INTERVAL * i);
+            }
+        });
+        this._registerListeners();
+        this._sendVersion();
+    };
+    Peer.prototype.disconnect = function (err) {
+        if (this.disconnected)
+            return;
+        this.disconnected = true;
+        if (this._handshakeTimeout)
+            clearTimeout(this._handshakeTimeout);
+        clearInterval(this._pingInterval);
+        this.socket.end();
+        this.emit("disconnect", err);
+    };
+    Peer.prototype.ping = function (cb) {
+        var _this = this;
+        var start = Date.now();
+        var nonce = crypto_1["default"].pseudoRandomBytes(8);
+        var onPong = function (pong) {
+            if (pong.nonce.compare(nonce) !== 0)
+                return;
+            _this.removeListener("pong", onPong);
+            var elapsed = Date.now() - start;
+            _this.latency = _this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
+            if (cb)
+                cb(null, elapsed, _this.latency);
+        };
+        this.on("pong", onPong);
+        this.send("ping", { nonce: nonce });
+    };
+    Peer.prototype._error = function (err) {
+        this.emit("error", err);
+        this.disconnect(err);
+    };
+    Peer.prototype._registerListeners = function () {
+        var _this = this;
+        this._decoder.on("error", this._error.bind(this));
+        this._decoder.on("data", function (message) {
+            _this.emit("message", message);
+            _this.emit(message.command, message.payload);
+        });
+        this._encoder.on("error", this._error.bind(this));
+        this.on("version", this._onVersion);
+        this.on("verack", function () {
+            if (_this.ready)
+                return _this._error(new Error("Got duplicate verack"));
+            _this.verack = true;
+            _this._maybeReady();
+        });
+        this.on("ping", function (message) { return _this.send("pong", message); });
+        this.on("block", function (block) {
+            _this.emit("block:" + utils_1.getBlockHash(block.header).toString("base64"), block);
+        });
+        this.on("merkleblock", function (block) {
+            _this.emit("merkleblock:" + utils_1.getBlockHash(block.header).toString("base64"), block);
+        });
+        this.on("tx", function (tx) {
+            _this.emit("tx:" + utils_1.getTxHash(tx).toString("base64"), tx);
+        });
+    };
+    Peer.prototype._onVersion = function (message) {
+        this.services = getServices(message.services);
+        if (!this.services.NODE_NETWORK) {
+            return this._error(new Error("Node does not provide NODE_NETWORK service"));
+        }
+        this.version = message;
+        if (message.version < this.minimumVersion) {
+            return this._error(new Error("Peer is using an incompatible protocol version: " +
+                ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
+        }
+        if (this.requireBloom &&
+            message.version >= BLOOMSERVICE_VERSION &&
+            !this.services.NODE_BLOOM) {
+            return this._error(new Error("Node does not provide NODE_BLOOM service"));
+        }
+        this.send("verack");
+        this._maybeReady();
+    };
+    Peer.prototype._maybeReady = function () {
+        if (!this.verack || !this.version)
+            return;
+        this.ready = true;
+        this.emit("ready");
+    };
+    Peer.prototype._onceReady = function (cb) {
+        if (this.ready)
+            return cb();
+        this.once("ready", cb);
+    };
+    Peer.prototype._sendVersion = function () {
+        this.send("version", {
+            version: this.protocolVersion,
+            services: SERVICES_SPV,
+            timestamp: Math.round(Date.now() / 1000),
+            receiverAddress: {
+                services: SERVICES_FULL,
+                address: this.socket.remoteAddress || "0.0.0.0",
+                port: this.socket.remotePort || 0
+            },
+            senderAddress: {
+                services: SERVICES_SPV,
+                address: "0.0.0.0",
+                port: this.socket.localPort || 0
+            },
+            nonce: crypto_1["default"].pseudoRandomBytes(8),
+            userAgent: this.userAgent,
+            startHeight: this.getTip ? this.getTip().height : 0,
+            relay: this.relay
+        });
+    };
+    Peer.prototype._getTimeout = function () {
+        return MIN_TIMEOUT + this.latency * 10;
+    };
+    Peer.prototype.getBlocks = function (hashes, opts, cb) {
+        if (typeof opts === "function") {
+            cb = opts;
+            opts = {};
+        }
+        if (opts.timeout == null)
+            opts.timeout = this._getTimeout();
+        var timeout;
+        var events = event_cleanup_1["default"](this);
+        var output = new Array(hashes.length);
+        var remaining = hashes.length;
+        hashes.forEach(function (hash, i) {
+            var event = (opts.filtered ? "merkle" : "") + "block:" + hash.toString("base64");
+            events.once(event, function (block) {
+                output[i] = block;
+                remaining--;
+                if (remaining > 0)
+                    return;
+                if (timeout != null)
+                    clearTimeout(timeout);
+                cb(null, output);
+            });
+        });
+        var inventory = hashes.map(function (hash) { return ({
+            type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+            hash: hash
+        }); });
+        this.send("getdata", inventory);
+        if (!opts.timeout)
+            return;
+        timeout = setTimeout(function () {
+            debug_1["default"]("getBlocks timed out: " + opts.timeout + " ms, remaining: " + remaining + "/" + hashes.length);
+            events.removeAll();
+            var error = new Error("Request timed out");
+            // error.timeout = true;
+            cb(error);
+        }, opts.timeout);
+    };
+    Peer.prototype.getTransactions = function (blockHash, txids, opts, cb) {
+        var _this = this;
+        if (Array.isArray(blockHash)) {
+            cb = opts;
+            opts = txids;
+            txids = blockHash;
+            blockHash = null;
+        }
+        if (typeof opts === "function") {
+            cb = opts;
+            opts = {};
+        }
+        var output = new Array(txids.length);
+        if (blockHash) {
+            var txIndex = {};
+            txids.forEach(function (txid, i) {
+                txIndex[txid.toString("base64")] = i;
+            });
+            this.getBlocks([blockHash], opts, function (err, blocks) {
+                if (err)
+                    return cb(err);
+                for (var _i = 0, _a = blocks[0].transactions; _i < _a.length; _i++) {
+                    var tx = _a[_i];
+                    var id = utils_1.getTxHash(tx).toString("base64");
+                    var i = txIndex[id];
+                    if (i == null)
+                        continue;
+                    delete txIndex[id];
+                    output[i] = tx;
+                }
+                cb(null, output);
+            });
+        }
+        else {
+            if (opts.timeout == null)
+                opts.timeout = this._getTimeout();
+            // TODO: make a function for all these similar timeout request methods
+            var timeout_1;
+            var remaining_1 = txids.length;
+            var events_2 = event_cleanup_1["default"](this);
+            txids.forEach(function (txid, i) {
+                var hash = txid.toString("base64");
+                _this.once("tx:" + hash, function (tx) {
+                    output[i] = tx;
+                    remaining_1--;
+                    if (remaining_1 > 0)
+                        return;
+                    if (timeout_1 != null)
+                        clearTimeout(timeout_1);
+                    cb(null, output);
+                });
+            });
+            var inventory = txids.map(function (hash) { return ({ type: INV.MSG_TX, hash: hash }); });
+            this.send("getdata", inventory);
+            if (!opts.timeout)
+                return;
+            timeout_1 = setTimeout(function () {
+                debug_1["default"]("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining_1 + "/" + txids.length);
+                events_2.removeAll();
+                var err = new Error("Request timed out");
+                // err.timeout = true;
+                cb(err);
+            }, opts.timeout);
+        }
+    };
+    Peer.prototype.getHeaders = function (locator, opts, cb) {
+        var _this = this;
+        if (this.gettingHeaders) {
+            this.getHeadersQueue.push({ locator: locator, opts: opts, cb: cb });
+            debug_1["default"]("queued \"getHeaders\" request: queue size=" + this.getHeadersQueue.length);
+            return;
+        }
+        this.gettingHeaders = true;
+        if (typeof opts === "function") {
+            cb = opts;
+            opts = {};
+        }
+        else if (typeof locator === "function") {
+            cb = locator;
+            opts = {};
+            locator = [];
+        }
+        opts.stop = opts.stop || bitcoin_util_1["default"].nullHash;
+        opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
+        var timeout;
+        var onHeaders = function (headers) {
+            if (timeout)
+                clearTimeout(timeout);
+            cb(null, headers);
+            _this._nextHeadersRequest();
+        };
+        this.once("headers", onHeaders);
+        this.send("getheaders", {
+            version: this.protocolVersion,
+            locator: locator,
+            hashStop: opts.stop
+        });
+        if (!opts.timeout)
+            return;
+        timeout = setTimeout(function () {
+            debug_1["default"]("getHeaders timed out: " + opts.timeout + " ms");
+            _this.removeListener("headers", onHeaders);
+            var error = new Error("Request timed out");
+            // error.timeout = true;
+            cb(error);
+            _this._nextHeadersRequest();
+        }, opts.timeout);
+    };
+    Peer.prototype._nextHeadersRequest = function () {
+        this.gettingHeaders = false;
+        if (this.getHeadersQueue.length === 0)
+            return;
+        var req = this.getHeadersQueue.shift();
+        this.getHeaders(req.locator, req.opts, req.cb);
+    };
+    return Peer;
+}(events_1["default"]));
+exports.Peer = Peer;
