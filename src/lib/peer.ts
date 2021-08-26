@@ -232,8 +232,6 @@ export class Peer extends EventEmitter.EventEmitter {
   _onVersion(message: any) {
     this.services = getServices(message.services);
 
-    console.log("xxx", this.services);
-    console.log("xxx", this.services.NODE_NETWORK);
     if (!this.services.NODE_NETWORK) {
       return this._error(new Error("Node does not provide NODE_NETWORK service"));
     }
@@ -293,11 +291,12 @@ export class Peer extends EventEmitter.EventEmitter {
     if (opts.timeout == null) opts.timeout = this._getTimeout();
 
     let timeout: any;
-    let events = wrapEvents(new EventEmitter());
+    let events = wrapEvents(this);
     let output = new Array(hashes.length);
     let remaining = hashes.length;
     hashes.forEach((hash: any, i: any) => {
       const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString("base64")}`;
+
       events.once(event, (block: any) => {
         output[i] = block;
         remaining--;
@@ -359,7 +358,7 @@ export class Peer extends EventEmitter.EventEmitter {
 
       let timeout: any;
       let remaining = txids.length;
-      let events = wrapEvents(new EventEmitter());
+      let events = wrapEvents(this);
       txids.forEach((txid: any, i: any) => {
         const hash = txid.toString("base64");
         this.once(`tx:${hash}`, (tx) => {

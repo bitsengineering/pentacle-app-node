@@ -206,8 +206,6 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype._onVersion = function (message) {
         this.services = getServices(message.services);
-        console.log("xxx", this.services);
-        console.log("xxx", this.services.NODE_NETWORK);
         if (!this.services.NODE_NETWORK) {
             return this._error(new Error("Node does not provide NODE_NETWORK service"));
         }
@@ -264,7 +262,7 @@ var Peer = /** @class */ (function (_super) {
         if (opts.timeout == null)
             opts.timeout = this._getTimeout();
         var timeout;
-        var events = wrapEvents(new events_1.EventEmitter());
+        var events = wrapEvents(this);
         var output = new Array(hashes.length);
         var remaining = hashes.length;
         hashes.forEach(function (hash, i) {
@@ -333,7 +331,7 @@ var Peer = /** @class */ (function (_super) {
             // TODO: make a function for all these similar timeout request methods
             var timeout_1;
             var remaining_1 = txids.length;
-            var events_2 = wrapEvents(new events_1.EventEmitter());
+            var events_2 = wrapEvents(this);
             txids.forEach(function (txid, i) {
                 var hash = txid.toString("base64");
                 _this.once("tx:" + hash, function (tx) {

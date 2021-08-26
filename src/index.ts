@@ -81,12 +81,12 @@ const socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, () => {
     peer.getBlocks([Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse()], {}, (_err: any, blocks: any) => {
       console.log("err", _err);
       console.log("blocks", blocks);
-      // blocks.forEach((block: any) => {
-      //   console.log(block);
-      //   block.transactions.forEach((transaction: any) => {
-      //     console.log(transaction);
-      //   });
-      // });
+      blocks.forEach((block: any) => {
+        console.log(block);
+        block.transactions.forEach((transaction: any) => {
+          console.log(transaction);
+        });
+      });
     });
   });
 });
