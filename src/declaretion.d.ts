@@ -2,6 +2,9 @@
 declare module "bitcoin-protocol";
 declare module "bitcoin-util";
 declare module "event-cleanup";
+declare module "websocket-stream";
+declare module "peer-exchange";
+declare module "get-browser-rtc";
 // declare module "event-cleanup";
 
 declare namespace NodeJS {

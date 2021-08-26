@@ -211,9 +211,12 @@ var Peer = /** @class */ (function (_super) {
         }
         this.version = message;
         if (message.version < this.minimumVersion) {
-            return this._error(new Error("Peer is using an incompatible protocol version: " + ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
+            return this._error(new Error("Peer is using an incompatible protocol version: " +
+                ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
         }
-        if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
+        if (this.requireBloom &&
+            message.version >= BLOOMSERVICE_VERSION &&
+            !this.services.NODE_BLOOM) {
             return this._error(new Error("Node does not provide NODE_BLOOM service"));
         }
         this.send("verack");
@@ -408,5 +411,5 @@ var Peer = /** @class */ (function (_super) {
         this.getHeaders(req.locator, req.opts, req.cb);
     };
     return Peer;
-}(events_1.EventEmitter.EventEmitter));
+}(events_1.EventEmitter));
 exports.Peer = Peer;

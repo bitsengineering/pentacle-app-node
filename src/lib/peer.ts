@@ -1,18 +1,20 @@
 import { pseudoRandomBytes } from "crypto";
-import { constants, createDecodeStream, createEncodeStream } from "bitcoin-protocol";
+import {
+  constants,
+  createDecodeStream,
+  createEncodeStream,
+} from "bitcoin-protocol";
 import * as through2 from "through2";
 import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
 import Debug from "debug";
 
 const wrapEvents = require("event-cleanup");
-
 const debug = Debug("bitcoin-net:peer");
 const rx = Debug("bitcoin-net:messages:rx");
 const tx = Debug("bitcoin-net:messages:tx");
 
 const INV = constants.inventory;
-
 const SERVICES_SPV: Buffer = Buffer.from("0800000000000000", "hex");
 const SERVICES_FULL: Buffer = Buffer.from("0100000000000000", "hex");
 const BLOOMSERVICE_VERSION: number = 70011;
@@ -21,7 +23,10 @@ const LATENCY_EXP: number = 0.5; // coefficient used for latency exponential ave
 const INITIAL_PING_N: number = 4; // send this many pings when we first connect
 const INITIAL_PING_INTERVAL: number = 250; // wait this many ms between initial pings
 const MIN_TIMEOUT: number = 4000; // lower bound for timeouts (in case latency is low)
-const nullHash = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
+const nullHash = Buffer.from(
+  "0000000000000000000000000000000000000000000000000000000000000000",
+  "hex"
+);
 
 interface ServiceBits {
   key: string;
@@ -55,7 +60,7 @@ const debugStream = (f: any) =>
     cb(null, message);
   });
 
-export class Peer extends EventEmitter.EventEmitter {
+export class Peer extends EventEmitter {
   params: any;
   protocolVersion: any;
   minimumVersion: any;
@@ -219,10 +224,16 @@ export class Peer extends EventEmitter.EventEmitter {
     this.on("ping", (message) => this.send("pong", message));
 
     this.on("block", (block) => {
-      this.emit(`block:${getBlockHash(block.header).toString("base64")}`, block);
+      this.emit(
+        `block:${getBlockHash(block.header).toString("base64")}`,
+        block
+      );
     });
     this.on("merkleblock", (block) => {
-      this.emit(`merkleblock:${getBlockHash(block.header).toString("base64")}`, block);
+      this.emit(
+        `merkleblock:${getBlockHash(block.header).toString("base64")}`,
+        block
+      );
     });
     this.on("tx", (tx) => {
       this.emit(`tx:${getTxHash(tx).toString("base64")}`, tx);
@@ -233,13 +244,24 @@ export class Peer extends EventEmitter.EventEmitter {
     this.services = getServices(message.services);
 
     if (!this.services.NODE_NETWORK) {
-      return this._error(new Error("Node does not provide NODE_NETWORK service"));
+      return this._error(
+        new Error("Node does not provide NODE_NETWORK service")
+      );
     }
     this.version = message;
     if (message.version < this.minimumVersion) {
-      return this._error(new Error("Peer is using an incompatible protocol version: " + `required: >= ${this.minimumVersion}, actual: ${message.version}`));
+      return this._error(
+        new Error(
+          "Peer is using an incompatible protocol version: " +
+            `required: >= ${this.minimumVersion}, actual: ${message.version}`
+        )
+      );
     }
-    if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
+    if (
+      this.requireBloom &&
+      message.version >= BLOOMSERVICE_VERSION &&
+      !this.services.NODE_BLOOM
+    ) {
       return this._error(new Error("Node does not provide NODE_BLOOM service"));
     }
     this.send("verack");
@@ -295,7 +317,9 @@ export class Peer extends EventEmitter.EventEmitter {
     let output = new Array(hashes.length);
     let remaining = hashes.length;
     hashes.forEach((hash: any, i: any) => {
-      const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString("base64")}`;
+      const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
+        "base64"
+      )}`;
 
       events.once(event, (block: any) => {
         output[i] = block;
@@ -314,7 +338,9 @@ export class Peer extends EventEmitter.EventEmitter {
 
     if (!opts.timeout) return;
     timeout = setTimeout(() => {
-      debug(`getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`);
+      debug(
+        `getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`
+      );
       events.removeAll();
       var error = new Error("Request timed out");
       // error.timeout = true;
@@ -375,7 +401,9 @@ export class Peer extends EventEmitter.EventEmitter {
 
       if (!opts.timeout) return;
       timeout = setTimeout(() => {
-        debug(`getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`);
+        debug(
+          `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
+        );
         events.removeAll();
         var err = new Error("Request timed out");
         // err.timeout = true;
@@ -387,7 +415,9 @@ export class Peer extends EventEmitter.EventEmitter {
   getHeaders(locator: any, opts: any, cb: any) {
     if (this.gettingHeaders) {
       this.getHeadersQueue.push({ locator, opts, cb });
-      debug(`queued "getHeaders" request: queue size=${this.getHeadersQueue.length}`);
+      debug(
+        `queued "getHeaders" request: queue size=${this.getHeadersQueue.length}`
+      );
       return;
     }
     this.gettingHeaders = true;

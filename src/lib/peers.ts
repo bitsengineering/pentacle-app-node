@@ -1,17 +1,10 @@
-"use strict";
-
-// const debug = require("debug")("bitcoin-net:peergroup");
-import dns from "dns";
-import EventEmitter from "events";
-import net from "net";
+import { resolve } from "dns";
+import { EventEmitter } from "events";
+import { connect } from "net";
 import ws from "websocket-stream";
-// const ws = require("websocket-stream");
-import http from "http";
+import { createServer } from "http";
 import Exchange from "peer-exchange";
 import getBrowserRTC from "get-browser-rtc";
-import once from "once";
-import assign from "object-assign";
-import old from "old";
 import { Peer } from "./peer";
 import {
   assertParams,
@@ -20,9 +13,11 @@ import {
   getRandom,
   parseAddress,
 } from "./utils";
-import * as setImmediate from "setimmediate";
+
 import debug from "debug";
 
+const assign = require("object.assign/polyfill")();
+const once = require("once");
 const DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 
 export class Peers extends EventEmitter {
@@ -42,7 +37,7 @@ export class Peers extends EventEmitter {
   private _exchange: any;
   constructor(
     params: { magic: { toString: (arg0: number) => any } },
-    opts: {
+    opts?: {
       numPeers?: any;
       hardLimit?: any;
       connectWeb?: any;
@@ -189,7 +184,7 @@ export class Peers extends EventEmitter {
   _connectDNSPeer(cb: (arg0: NodeJS.ErrnoException) => void) {
     let seeds = this._params.dnsSeeds;
     let seed = getRandom(seeds);
-    dns.resolve(seed, (err, addresses) => {
+    resolve(seed, (err, addresses) => {
       if (err) return cb(err);
       let address = getRandom(addresses);
       this._connectTCP(address, this._params.defaultPort, cb);
@@ -207,7 +202,7 @@ export class Peers extends EventEmitter {
   // connects to a standard protocol TCP peer
   _connectTCP(host: any, port: any, cb: any) {
     debug(`_connectTCP: tcp://${host}:${port}`);
-    let socket = net.connect(port, host);
+    let socket = connect(port, host);
     let timeout: NodeJS.Timeout;
     if (this.connectTimeout) {
       timeout = setTimeout(() => {
@@ -276,7 +271,7 @@ export class Peers extends EventEmitter {
   }
 
   // initializes the PeerGroup by creating peer connections
-  connect(onConnect: any) {
+  connect(onConnect?: any) {
     debug("connect called");
     this.connecting = true;
     if (onConnect) this.once("connect", onConnect);
@@ -317,7 +312,7 @@ export class Peers extends EventEmitter {
     if (process.browser) return cb(null);
     if (!port) port = DEFAULT_PXP_PORT;
     this.websocketPort = port;
-    let server = http.createServer();
+    let server = createServer();
     ws.createServer({ server }, (stream: any) => {
       this._exchange.accept(stream);
     });
@@ -394,7 +389,7 @@ export class Peers extends EventEmitter {
         debug(`peer request "${method}" timed out, disconnecting`);
         peer.disconnect(err);
         this.emit("requestError", err);
-        return this._request(...arguments);
+        return this._request(method, ...args);
       }
       cb(err, res, peer);
     });
