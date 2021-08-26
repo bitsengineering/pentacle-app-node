@@ -41,7 +41,7 @@ const serviceBits: Array<ServiceBits> = [
   { key: "NODE_NETWORK_LIMITED", value: 10 },
 ];
 
-function getServices(buf: any) {
+const getServices = (buf: any) => {
   const services: any = {};
   serviceBits.forEach((sr: ServiceBits, index) => {
     const byteIndex = Math.floor(sr.value / 8);
@@ -52,7 +52,7 @@ function getServices(buf: any) {
     }
   });
   return services;
-}
+};
 
 const debugStream = (f: any) =>
   through2.obj((message: string, enc: any, cb: any) => {
@@ -139,12 +139,12 @@ export class Peer extends EventEmitter {
     });
     socket.on("error", this._error.bind(this));
 
-    var protocolOpts = {
+    const protocolOpts = {
       magic: this.params.magic,
       messages: this.params.messages,
     };
 
-    var decoder = createDecodeStream(protocolOpts);
+    const decoder = createDecodeStream(protocolOpts);
     decoder.on("error", this._error.bind(this));
     this._decoder = debugStream(rx);
     socket.pipe(decoder).pipe(this._decoder);
@@ -168,7 +168,7 @@ export class Peer extends EventEmitter {
     // set up ping interval and initial pings
     this.once("ready", () => {
       this._pingInterval = setInterval(this.ping.bind(this), this.pingInterval);
-      for (var i = 0; i < INITIAL_PING_N; i++) {
+      for (let i = 0; i < INITIAL_PING_N; i++) {
         setTimeout(this.ping.bind(this), INITIAL_PING_INTERVAL * i);
       }
     });
@@ -187,12 +187,12 @@ export class Peer extends EventEmitter {
   }
 
   ping(cb: any) {
-    var start = Date.now();
-    var nonce = pseudoRandomBytes(8);
-    var onPong = (pong: any) => {
+    const start = Date.now();
+    const nonce = pseudoRandomBytes(8);
+    const onPong = (pong: any) => {
       if (pong.nonce.compare(nonce) !== 0) return;
       this.removeListener("pong", onPong);
-      var elapsed = Date.now() - start;
+      const elapsed = Date.now() - start;
       this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
       if (cb) cb(null, elapsed, this.latency);
     };
@@ -342,7 +342,7 @@ export class Peer extends EventEmitter {
         `getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`
       );
       events.removeAll();
-      var error = new Error("Request timed out");
+      const error = new Error("Request timed out");
       // error.timeout = true;
       cb(error);
     }, opts.timeout);
@@ -360,18 +360,18 @@ export class Peer extends EventEmitter {
       opts = {};
     }
 
-    var output = new Array(txids.length);
+    const output = new Array(txids.length);
 
     if (blockHash) {
-      var txIndex: any = {};
+      const txIndex: any = {};
       txids.forEach((txid: any, i: any) => {
         txIndex[txid.toString("base64")] = i;
       });
       this.getBlocks([blockHash], opts, (err: any, blocks: any) => {
         if (err) return cb(err);
-        for (var tx of blocks[0].transactions) {
-          var id = getTxHash(tx).toString("base64");
-          var i = txIndex[id];
+        for (let tx of blocks[0].transactions) {
+          const id = getTxHash(tx).toString("base64");
+          const i = txIndex[id];
           if (i == null) continue;
           delete txIndex[id];
           output[i] = tx;
@@ -396,7 +396,10 @@ export class Peer extends EventEmitter {
         });
       });
 
-      var inventory = txids.map((hash: string) => ({ type: INV.MSG_TX, hash }));
+      const inventory = txids.map((hash: string) => ({
+        type: INV.MSG_TX,
+        hash,
+      }));
       this.send("getdata", inventory);
 
       if (!opts.timeout) return;
@@ -405,7 +408,7 @@ export class Peer extends EventEmitter {
           `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
         );
         events.removeAll();
-        var err = new Error("Request timed out");
+        const err = new Error("Request timed out");
         // err.timeout = true;
         cb(err);
       }, opts.timeout);
@@ -449,7 +452,7 @@ export class Peer extends EventEmitter {
     timeout = setTimeout(() => {
       debug(`getHeaders timed out: ${opts.timeout} ms`);
       this.removeListener("headers", onHeaders);
-      var error = new Error("Request timed out");
+      const error = new Error("Request timed out");
       // error.timeout = true;
       cb(error);
       this._nextHeadersRequest();
@@ -459,7 +462,7 @@ export class Peer extends EventEmitter {
   _nextHeadersRequest() {
     this.gettingHeaders = false;
     if (this.getHeadersQueue.length === 0) return;
-    var req = this.getHeadersQueue.shift();
+    const req = this.getHeadersQueue.shift();
     this.getHeaders(req.locator, req.opts, req.cb);
   }
 }

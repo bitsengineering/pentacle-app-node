@@ -42,7 +42,7 @@ var serviceBits = [
     { key: "NODE_WITNESS", value: 3 },
     { key: "NODE_NETWORK_LIMITED", value: 10 },
 ];
-function getServices(buf) {
+var getServices = function (buf) {
     var services = {};
     serviceBits.forEach(function (sr, index) {
         var byteIndex = Math.floor(sr.value / 8);
@@ -53,7 +53,7 @@ function getServices(buf) {
         }
     });
     return services;
-}
+};
 var debugStream = function (f) {
     return through2.obj(function (message, enc, cb) {
         f(message);
@@ -309,21 +309,21 @@ var Peer = /** @class */ (function (_super) {
         }
         var output = new Array(txids.length);
         if (blockHash) {
-            var txIndex = {};
+            var txIndex_1 = {};
             txids.forEach(function (txid, i) {
-                txIndex[txid.toString("base64")] = i;
+                txIndex_1[txid.toString("base64")] = i;
             });
             this.getBlocks([blockHash], opts, function (err, blocks) {
                 if (err)
                     return cb(err);
                 for (var _i = 0, _a = blocks[0].transactions; _i < _a.length; _i++) {
-                    var tx = _a[_i];
-                    var id = utils_1.getTxHash(tx).toString("base64");
-                    var i = txIndex[id];
+                    var tx_1 = _a[_i];
+                    var id = utils_1.getTxHash(tx_1).toString("base64");
+                    var i = txIndex_1[id];
                     if (i == null)
                         continue;
-                    delete txIndex[id];
-                    output[i] = tx;
+                    delete txIndex_1[id];
+                    output[i] = tx_1;
                 }
                 cb(null, output);
             });
@@ -347,7 +347,10 @@ var Peer = /** @class */ (function (_super) {
                     cb(null, output);
                 });
             });
-            var inventory = txids.map(function (hash) { return ({ type: INV.MSG_TX, hash: hash }); });
+            var inventory = txids.map(function (hash) { return ({
+                type: INV.MSG_TX,
+                hash: hash
+            }); });
             this.send("getdata", inventory);
             if (!opts.timeout)
                 return;
