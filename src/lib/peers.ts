@@ -13,7 +13,6 @@ import {
   getRandom,
   parseAddress,
 } from "./utils";
-
 import debug from "debug";
 
 const assign = require("object.assign/polyfill")();
@@ -62,7 +61,7 @@ export class Peers extends EventEmitter {
       opts.connectTimeout != null ? opts.connectTimeout : 8 * 1000;
     this.peerOpts = opts.peerOpts != null ? opts.peerOpts : {};
     this.acceptIncoming = opts.acceptIncoming;
-    let acceptIncoming = this.acceptIncoming;
+    const acceptIncoming = this.acceptIncoming;
     this.connecting = false;
     this.closed = false;
     this.accepting = false;
@@ -202,7 +201,7 @@ export class Peers extends EventEmitter {
   // connects to a standard protocol TCP peer
   _connectTCP(host: any, port: any, cb: any) {
     debug(`_connectTCP: tcp://${host}:${port}`);
-    let socket = connect(port, host);
+    const socket = connect(port, host);
     let timeout: NodeJS.Timeout;
     if (this.connectTimeout) {
       timeout = setTimeout(() => {
@@ -224,7 +223,7 @@ export class Peers extends EventEmitter {
   _connectWebSeeds() {
     this._webSeeds.forEach((seed: any) => {
       debug(`connecting to web seed: ${JSON.stringify(seed, null, "  ")}`);
-      let socket = ws(seed);
+      const socket = ws(seed);
       socket.on("error", (err: any) => this._error(err));
       this._exchange.connect(socket, (err: { stack: any }, peer: any) => {
         if (err) {
@@ -254,7 +253,7 @@ export class Peers extends EventEmitter {
 
     // TODO: smarter peer logic (ensure we don't have too many peers from the
     // same seed, or the same IP block)
-    let n = this._numPeers - this.peers.length;
+    const n = this._numPeers - this.peers.length;
     debug(
       `_fillPeers: n = ${n}, numPeers = ${this._numPeers}, peers.length = ${this.peers.length}`
     );
@@ -299,7 +298,7 @@ export class Peers extends EventEmitter {
     debug(`close called: peers.length = ${this.peers.length}`);
     this.closed = true;
     if (this.peers.length === 0) return cb(null);
-    let peers = this.peers.slice(0);
+    const peers = this.peers.slice(0);
     for (let peer of peers) {
       peer.once("disconnect", () => {
         if (this.peers.length === 0) cb(null);
@@ -312,7 +311,7 @@ export class Peers extends EventEmitter {
     if (process.browser) return cb(null);
     if (!port) port = DEFAULT_PXP_PORT;
     this.websocketPort = port;
-    let server = createServer();
+    const server = createServer();
     ws.createServer({ server }, (stream: any) => {
       this._exchange.accept(stream);
     });
@@ -328,18 +327,18 @@ export class Peers extends EventEmitter {
     debug(`add peer: peers.length = ${this.peers.length}`);
 
     if (this._hardLimit && this.peers.length > this._numPeers) {
-      let disconnectPeer = this.peers.shift();
+      const disconnectPeer = this.peers.shift();
       disconnectPeer?.disconnect(Error("PeerGroup over limit"));
     }
 
-    let onMessage = (message: { command: string | symbol; payload: any }) => {
+    const onMessage = (message: { command: string | symbol; payload: any }) => {
       this.emit("message", message, peer);
       this.emit(message.command, message.payload, peer);
     };
     peer.on("message", onMessage);
 
     peer.once("disconnect", (err) => {
-      let index = this.peers.indexOf(peer);
+      const index = this.peers.indexOf(peer);
       this.peers.splice(index, 1);
       peer.removeListener("message", onMessage);
       debug(
@@ -381,7 +380,7 @@ export class Peers extends EventEmitter {
   ) {
     let cb: any = args.pop();
     while (!cb) cb = args.pop();
-    let peer = this.randomPeer();
+    const peer = this.randomPeer();
     args.push((err, res) => {
       if (this.closed) return;
       if (err && err.timeout) {
