@@ -75,28 +75,25 @@ const GENESIS_BLOCK_HASH =
 //   );
 // };
 const net = require("net");
-const socket = net.connect(
-  { port: 8333, host: "seed.bitcoinstats.com" },
-  () => {
-    const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket });
+const socket = net.connect({ port: 8333, host: "seed.bitnodes.io" }, () => {
+  const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket });
 
-    peer.once("ready", () => {
-      peer.getBlocks(
-        [
-          Buffer.from(
-            "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
-            "hex"
-          ).reverse(),
-        ],
-        (_err: any, blocks: any) => {
-          blocks.forEach((block: any) => {
-            console.log(block);
-            block.transactions.forEach((transaction: any) => {
-              console.log(transaction);
-            });
+  peer.once("ready", () => {
+    peer.getBlocks(
+      [
+        Buffer.from(
+          "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
+          "hex"
+        ).reverse(),
+      ],
+      (_err: any, blocks: any) => {
+        blocks.forEach((block: any) => {
+          console.log(block);
+          block.transactions.forEach((transaction: any) => {
+            console.log(transaction);
           });
-        }
-      );
-    });
-  }
-);
+        });
+      }
+    );
+  });
+});

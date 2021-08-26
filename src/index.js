@@ -61,7 +61,7 @@ var GENESIS_BLOCK_HASH = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1
 //   );
 // };
 var net = require("net");
-var socket = net.connect({ port: 8333, host: "seed.bitcoinstats.com" }, function () {
+var socket = net.connect({ port: 8333, host: "seed.bitnodes.io" }, function () {
     var peer = new peer_1.Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket: socket });
     peer.once("ready", function () {
         peer.getBlocks([

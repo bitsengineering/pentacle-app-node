@@ -19,11 +19,11 @@ exports.Peer = void 0;
 var crypto_1 = require("crypto");
 var bitcoin_protocol_1 = require("bitcoin-protocol");
 var bitcoin_util_1 = require("bitcoin-util");
-var event_cleanup_1 = require("event-cleanup");
 var through2 = require("through2");
 var utils_1 = require("./utils");
-var EventEmitter = require("events");
+var events_1 = require("events");
 var debug_1 = require("debug");
+var wrapEvents = require("event-cleanup");
 var debug = debug_1["default"]("bitcoin-net:peer");
 var rx = debug_1["default"]("bitcoin-net:messages:rx");
 var tx = debug_1["default"]("bitcoin-net:messages:tx");
@@ -213,9 +213,12 @@ var Peer = /** @class */ (function (_super) {
         }
         this.version = message;
         if (message.version < this.minimumVersion) {
-            return this._error(new Error("Peer is using an incompatible protocol version: " + ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
+            return this._error(new Error("Peer is using an incompatible protocol version: " +
+                ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
         }
-        if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
+        if (this.requireBloom &&
+            message.version >= BLOOMSERVICE_VERSION &&
+            !this.services.NODE_BLOOM) {
             return this._error(new Error("Node does not provide NODE_BLOOM service"));
         }
         this.send("verack");
@@ -264,7 +267,7 @@ var Peer = /** @class */ (function (_super) {
         if (opts.timeout == null)
             opts.timeout = this._getTimeout();
         var timeout;
-        var events = event_cleanup_1["default"](EventEmitter.EventEmitter);
+        var events = wrapEvents(new events_1.EventEmitter());
         var output = new Array(hashes.length);
         var remaining = hashes.length;
         hashes.forEach(function (hash, i) {
@@ -333,7 +336,7 @@ var Peer = /** @class */ (function (_super) {
             // TODO: make a function for all these similar timeout request methods
             var timeout_1;
             var remaining_1 = txids.length;
-            var events_1 = event_cleanup_1["default"](EventEmitter.EventEmitter);
+            var events_2 = wrapEvents(new events_1.EventEmitter());
             txids.forEach(function (txid, i) {
                 var hash = txid.toString("base64");
                 _this.once("tx:" + hash, function (tx) {
@@ -352,7 +355,7 @@ var Peer = /** @class */ (function (_super) {
                 return;
             timeout_1 = setTimeout(function () {
                 debug("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining_1 + "/" + txids.length);
-                events_1.removeAll();
+                events_2.removeAll();
                 var err = new Error("Request timed out");
                 // err.timeout = true;
                 cb(err);
@@ -410,5 +413,5 @@ var Peer = /** @class */ (function (_super) {
         this.getHeaders(req.locator, req.opts, req.cb);
     };
     return Peer;
-}(EventEmitter.EventEmitter));
+}(events_1.EventEmitter.EventEmitter));
 exports.Peer = Peer;
