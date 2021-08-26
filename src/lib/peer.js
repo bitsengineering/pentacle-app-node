@@ -34,7 +34,7 @@ var LATENCY_EXP = 0.5; // coefficient used for latency exponential average
 var INITIAL_PING_N = 4; // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 250; // wait this many ms between initial pings
 var MIN_TIMEOUT = 4000; // lower bound for timeouts (in case latency is low)
-var nullHash = new Buffer("0000000000000000000000000000000000000000000000000000000000000000", "hex");
+var nullHash = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
 var serviceBits = [
     { key: "NODE_NETWORK", value: 0 },
     { key: "NODE_GETUTXO", value: 1 },

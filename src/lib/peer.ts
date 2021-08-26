@@ -6,6 +6,7 @@ import { EventEmitter } from "events";
 import Debug from "debug";
 
 const wrapEvents = require("event-cleanup");
+
 const debug = Debug("bitcoin-net:peer");
 const rx = Debug("bitcoin-net:messages:rx");
 const tx = Debug("bitcoin-net:messages:tx");
@@ -20,7 +21,7 @@ const LATENCY_EXP: number = 0.5; // coefficient used for latency exponential ave
 const INITIAL_PING_N: number = 4; // send this many pings when we first connect
 const INITIAL_PING_INTERVAL: number = 250; // wait this many ms between initial pings
 const MIN_TIMEOUT: number = 4000; // lower bound for timeouts (in case latency is low)
-const nullHash = new Buffer("0000000000000000000000000000000000000000000000000000000000000000", "hex");
+const nullHash = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
 
 interface ServiceBits {
   key: string;

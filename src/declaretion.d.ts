@@ -1,6 +1,7 @@
 // import debug from "debug";
 declare module "bitcoin-protocol";
 declare module "bitcoin-util";
+declare module "event-cleanup";
 // declare module "event-cleanup";
 
 declare namespace NodeJS {
