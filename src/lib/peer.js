@@ -20,12 +20,14 @@ var crypto_1 = require("crypto");
 var bitcoin_protocol_1 = require("bitcoin-protocol");
 var bitcoin_util_1 = require("bitcoin-util");
 var event_cleanup_1 = require("event-cleanup");
-var through2_1 = require("through2");
+var through2 = require("through2");
 var utils_1 = require("./utils");
-var package_json_1 = require("../../package.json");
-var events_1 = require("events");
+var EventEmitter = require("events");
 var debug_1 = require("debug");
-var INV = bitcoin_protocol_1["default"].constants.inventory;
+var debug = debug_1["default"]("bitcoin-net:peer");
+var rx = debug_1["default"]("bitcoin-net:messages:rx");
+var tx = debug_1["default"]("bitcoin-net:messages:tx");
+var INV = bitcoin_protocol_1.constants.inventory;
 var SERVICES_SPV = Buffer.from("0800000000000000", "hex");
 var SERVICES_FULL = Buffer.from("0100000000000000", "hex");
 var BLOOMSERVICE_VERSION = 70011;
@@ -47,13 +49,13 @@ function getServices(buf) {
         var byte = buf.readUInt32LE(byteIndex);
         var bitIndex = sr.value % 8;
         if (byte & (1 << bitIndex)) {
-            services[name] = true;
+            services[sr.key] = true;
         }
     });
     return services;
 }
 var debugStream = function (f) {
-    return through2_1["default"](function (message, enc, cb) {
+    return through2.obj(function (message, enc, cb) {
         f(message);
         cb(null, message);
     });
@@ -74,7 +76,7 @@ var Peer = /** @class */ (function (_super) {
                 _this.userAgent = "/" + navigator.userAgent + "/";
             else
                 _this.userAgent = "/node.js:" + process.versions.node + "/";
-            _this.userAgent += package_json_1["default"].name + ":" + package_json_1["default"].version + "/";
+            _this.userAgent += "pentacle-app-node\":1.0.0/";
         }
         if (opts.subUserAgent)
             _this.userAgent += opts.subUserAgent;
@@ -92,7 +94,7 @@ var Peer = /** @class */ (function (_super) {
         _this.getHeadersQueue = [];
         _this.gettingHeaders = false;
         _this.verack = false;
-        _this._pingInterval = window.setInterval;
+        _this._pingInterval = undefined;
         _this.setMaxListeners(200);
         if (opts.socket)
             _this.connect(opts.socket);
@@ -118,12 +120,12 @@ var Peer = /** @class */ (function (_super) {
             magic: this.params.magic,
             messages: this.params.messages
         };
-        var decoder = bitcoin_protocol_1["default"].createDecodeStream(protocolOpts);
+        var decoder = bitcoin_protocol_1.createDecodeStream(protocolOpts);
         decoder.on("error", this._error.bind(this));
-        this._decoder = debugStream(debug_1["default"].rx);
+        this._decoder = debugStream(rx);
         socket.pipe(decoder).pipe(this._decoder);
-        this._encoder = debugStream(debug_1["default"].tx);
-        var encoder = bitcoin_protocol_1["default"].createEncodeStream(protocolOpts);
+        this._encoder = debugStream(tx);
+        var encoder = bitcoin_protocol_1.createEncodeStream(protocolOpts);
         this._encoder.pipe(encoder).pipe(socket);
         // timeout if handshake doesn't finish fast enough
         if (this.handshakeTimeout) {
@@ -152,14 +154,14 @@ var Peer = /** @class */ (function (_super) {
         this.disconnected = true;
         if (this._handshakeTimeout)
             clearTimeout(this._handshakeTimeout);
-        clearInterval(this._pingInterval);
+        clearInterval(undefined);
         this.socket.end();
         this.emit("disconnect", err);
     };
     Peer.prototype.ping = function (cb) {
         var _this = this;
         var start = Date.now();
-        var nonce = crypto_1["default"].pseudoRandomBytes(8);
+        var nonce = crypto_1.pseudoRandomBytes(8);
         var onPong = function (pong) {
             if (pong.nonce.compare(nonce) !== 0)
                 return;
@@ -204,17 +206,16 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype._onVersion = function (message) {
         this.services = getServices(message.services);
+        console.log("xxx", this.services);
+        console.log("xxx", this.services.NODE_NETWORK);
         if (!this.services.NODE_NETWORK) {
             return this._error(new Error("Node does not provide NODE_NETWORK service"));
         }
         this.version = message;
         if (message.version < this.minimumVersion) {
-            return this._error(new Error("Peer is using an incompatible protocol version: " +
-                ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
+            return this._error(new Error("Peer is using an incompatible protocol version: " + ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
         }
-        if (this.requireBloom &&
-            message.version >= BLOOMSERVICE_VERSION &&
-            !this.services.NODE_BLOOM) {
+        if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
             return this._error(new Error("Node does not provide NODE_BLOOM service"));
         }
         this.send("verack");
@@ -246,7 +247,7 @@ var Peer = /** @class */ (function (_super) {
                 address: "0.0.0.0",
                 port: this.socket.localPort || 0
             },
-            nonce: crypto_1["default"].pseudoRandomBytes(8),
+            nonce: crypto_1.pseudoRandomBytes(8),
             userAgent: this.userAgent,
             startHeight: this.getTip ? this.getTip().height : 0,
             relay: this.relay
@@ -263,7 +264,7 @@ var Peer = /** @class */ (function (_super) {
         if (opts.timeout == null)
             opts.timeout = this._getTimeout();
         var timeout;
-        var events = event_cleanup_1["default"](this);
+        var events = event_cleanup_1["default"](EventEmitter.EventEmitter);
         var output = new Array(hashes.length);
         var remaining = hashes.length;
         hashes.forEach(function (hash, i) {
@@ -286,7 +287,7 @@ var Peer = /** @class */ (function (_super) {
         if (!opts.timeout)
             return;
         timeout = setTimeout(function () {
-            debug_1["default"]("getBlocks timed out: " + opts.timeout + " ms, remaining: " + remaining + "/" + hashes.length);
+            debug("getBlocks timed out: " + opts.timeout + " ms, remaining: " + remaining + "/" + hashes.length);
             events.removeAll();
             var error = new Error("Request timed out");
             // error.timeout = true;
@@ -332,7 +333,7 @@ var Peer = /** @class */ (function (_super) {
             // TODO: make a function for all these similar timeout request methods
             var timeout_1;
             var remaining_1 = txids.length;
-            var events_2 = event_cleanup_1["default"](this);
+            var events_1 = event_cleanup_1["default"](EventEmitter.EventEmitter);
             txids.forEach(function (txid, i) {
                 var hash = txid.toString("base64");
                 _this.once("tx:" + hash, function (tx) {
@@ -350,8 +351,8 @@ var Peer = /** @class */ (function (_super) {
             if (!opts.timeout)
                 return;
             timeout_1 = setTimeout(function () {
-                debug_1["default"]("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining_1 + "/" + txids.length);
-                events_2.removeAll();
+                debug("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining_1 + "/" + txids.length);
+                events_1.removeAll();
                 var err = new Error("Request timed out");
                 // err.timeout = true;
                 cb(err);
@@ -362,7 +363,7 @@ var Peer = /** @class */ (function (_super) {
         var _this = this;
         if (this.gettingHeaders) {
             this.getHeadersQueue.push({ locator: locator, opts: opts, cb: cb });
-            debug_1["default"]("queued \"getHeaders\" request: queue size=" + this.getHeadersQueue.length);
+            debug("queued \"getHeaders\" request: queue size=" + this.getHeadersQueue.length);
             return;
         }
         this.gettingHeaders = true;
@@ -393,7 +394,7 @@ var Peer = /** @class */ (function (_super) {
         if (!opts.timeout)
             return;
         timeout = setTimeout(function () {
-            debug_1["default"]("getHeaders timed out: " + opts.timeout + " ms");
+            debug("getHeaders timed out: " + opts.timeout + " ms");
             _this.removeListener("headers", onHeaders);
             var error = new Error("Request timed out");
             // error.timeout = true;
@@ -409,5 +410,5 @@ var Peer = /** @class */ (function (_super) {
         this.getHeaders(req.locator, req.opts, req.cb);
     };
     return Peer;
-}(events_1["default"]));
+}(EventEmitter.EventEmitter));
 exports.Peer = Peer;
