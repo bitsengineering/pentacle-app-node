@@ -42,7 +42,7 @@ const serviceBits: Array<ServiceBits> = [
 ];
 
 function getServices(buf: any) {
-  let services: any = {};
+  const services: any = {};
   serviceBits.forEach((sr: ServiceBits, index) => {
     const byteIndex = Math.floor(sr.value / 8);
     const byte = buf.readUInt32LE(byteIndex);
@@ -150,7 +150,7 @@ export class Peer extends EventEmitter {
     socket.pipe(decoder).pipe(this._decoder);
 
     this._encoder = debugStream(tx);
-    let encoder = createEncodeStream(protocolOpts);
+    const encoder = createEncodeStream(protocolOpts);
     this._encoder.pipe(encoder).pipe(socket);
 
     // timeout if handshake doesn't finish fast enough
@@ -313,9 +313,9 @@ export class Peer extends EventEmitter {
     if (opts.timeout == null) opts.timeout = this._getTimeout();
 
     let timeout: any;
-    let events = wrapEvents(this);
-    let output = new Array(hashes.length);
-    let remaining = hashes.length;
+    const events = wrapEvents(this);
+    const output = new Array(hashes.length);
+    const remaining = hashes.length;
     hashes.forEach((hash: any, i: any) => {
       const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
         "base64"
@@ -384,7 +384,7 @@ export class Peer extends EventEmitter {
 
       let timeout: any;
       let remaining = txids.length;
-      let events = wrapEvents(this);
+      const events = wrapEvents(this);
       txids.forEach((txid: any, i: any) => {
         const hash = txid.toString("base64");
         this.once(`tx:${hash}`, (tx) => {
