@@ -8,6 +8,7 @@ import * as through2 from "through2";
 import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
 import Debug from "debug";
+import * as internal from "stream";
 
 const wrapEvents = require("event-cleanup");
 const debug = Debug("bitcoin-net:peer");
@@ -62,15 +63,15 @@ const debugStream = (f: any) =>
 
 export class Peer extends EventEmitter {
   params: any;
-  protocolVersion: any;
-  minimumVersion: any;
+  protocolVersion: number;
+  minimumVersion: number;
   requireBloom: boolean;
-  userAgent: any;
+  userAgent: string;
   handshakeTimeout: any;
   getTip: any;
-  relay: any;
+  relay: boolean;
   pingInterval: any;
-  version: any | null;
+  version: number | null;
   services: any | null;
   socket: any | null;
   _handshakeTimeout: any | null;
@@ -78,8 +79,8 @@ export class Peer extends EventEmitter {
   latency: number;
   getHeadersQueue: Array<any>;
   gettingHeaders: boolean;
-  private _encoder: any;
-  private _decoder: any;
+  private _encoder: internal.Transform | undefined;
+  private _decoder: internal.Transform | undefined;
   _pingInterval?: NodeJS.Timer;
   ready: any;
   verack: boolean;
@@ -126,7 +127,7 @@ export class Peer extends EventEmitter {
   send(command: any, payload?: any) {
     // TODO?: maybe this should error if we try to write after close?
     if (!this.socket.writable) return;
-    this._encoder.write({ command, payload });
+    if (this._encoder) this._encoder.write({ command, payload });
   }
 
   connect(socket: any) {
@@ -206,13 +207,14 @@ export class Peer extends EventEmitter {
   }
 
   _registerListeners() {
-    this._decoder.on("error", this._error.bind(this));
-    this._decoder.on("data", (message: any) => {
-      this.emit("message", message);
-      this.emit(message.command, message.payload);
-    });
+    if (this._decoder) this._decoder.on("error", this._error.bind(this));
+    if (this._decoder)
+      this._decoder.on("data", (message: any) => {
+        this.emit("message", message);
+        this.emit(message.command, message.payload);
+      });
 
-    this._encoder.on("error", this._error.bind(this));
+    if (this._encoder) this._encoder.on("error", this._error.bind(this));
 
     this.on("version", this._onVersion);
     this.on("verack", () => {

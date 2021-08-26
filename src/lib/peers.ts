@@ -21,26 +21,26 @@ const DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 
 export class Peers extends EventEmitter {
   private _params: any;
-  private _numPeers: any;
-  peers: Array<any>;
-  private _hardLimit: any; // const debug = require("debug")("bitcoin-net:peergroup");
-  websocketPort: any | null;
+  private _numPeers: number;
+  peers: any;
+  private _hardLimit: boolean; // const debug = require("debug")("bitcoin-net:peergroup");
+  websocketPort: number | null;
   private _connectWeb: any;
-  connectTimeout: any;
+  connectTimeout: number;
   peerOpts: any;
   acceptIncoming: any;
   connecting: boolean;
   closed: boolean;
   accepting: boolean;
-  private _webSeeds: any;
+  private _webSeeds: Array<string>;
   private _exchange: any;
   constructor(
     params: { magic: { toString: (arg0: number) => any } },
     opts?: {
-      numPeers?: any;
-      hardLimit?: any;
-      connectWeb?: any;
-      connectTimeout?: any;
+      numPeers?: number;
+      hardLimit?: boolean;
+      connectWeb?: boolean;
+      connectTimeout?: number;
       peerOpts?: any;
       acceptIncoming?: any;
       wrtc?: any;
@@ -65,6 +65,7 @@ export class Peers extends EventEmitter {
     this.connecting = false;
     this.closed = false;
     this.accepting = false;
+    this._webSeeds = [];
 
     if (this._connectWeb) {
       let wrtc = opts.wrtc || getBrowserRTC();

@@ -104,7 +104,8 @@ var Peer = /** @class */ (function (_super) {
         // TODO?: maybe this should error if we try to write after close?
         if (!this.socket.writable)
             return;
-        this._encoder.write({ command: command, payload: payload });
+        if (this._encoder)
+            this._encoder.write({ command: command, payload: payload });
     };
     Peer.prototype.connect = function (socket) {
         var _this = this;
@@ -180,12 +181,15 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype._registerListeners = function () {
         var _this = this;
-        this._decoder.on("error", this._error.bind(this));
-        this._decoder.on("data", function (message) {
-            _this.emit("message", message);
-            _this.emit(message.command, message.payload);
-        });
-        this._encoder.on("error", this._error.bind(this));
+        if (this._decoder)
+            this._decoder.on("error", this._error.bind(this));
+        if (this._decoder)
+            this._decoder.on("data", function (message) {
+                _this.emit("message", message);
+                _this.emit(message.command, message.payload);
+            });
+        if (this._encoder)
+            this._encoder.on("error", this._error.bind(this));
         this.on("version", this._onVersion);
         this.on("verack", function () {
             if (_this.ready)

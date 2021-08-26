@@ -56,6 +56,7 @@ var Peers = /** @class */ (function (_super) {
         _this.connecting = false;
         _this.closed = false;
         _this.accepting = false;
+        _this._webSeeds = [];
         if (_this._connectWeb) {
             var wrtc = opts.wrtc || get_browser_rtc_1["default"]();
             var envSeeds = process.env.WEB_SEED
