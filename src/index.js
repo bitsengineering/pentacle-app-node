@@ -61,18 +61,18 @@ var GENESIS_BLOCK_HASH = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1
 //   );
 // };
 var net = require("net");
-var socket = net.connect({ port: 8333, host: "seed.bitnodes.io" }, function () {
+var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function () {
     var peer = new peer_1.Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket: socket });
     peer.once("ready", function () {
-        peer.getBlocks([
-            Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
-        ], function (_err, blocks) {
-            blocks.forEach(function (block) {
-                console.log(block);
-                block.transactions.forEach(function (transaction) {
-                    console.log(transaction);
-                });
-            });
+        peer.getBlocks([Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse()], {}, function (_err, blocks) {
+            console.log("err", _err);
+            console.log("blocks", blocks);
+            // blocks.forEach((block: any) => {
+            //   console.log(block);
+            //   block.transactions.forEach((transaction: any) => {
+            //     console.log(transaction);
+            //   });
+            // });
         });
     });
 });

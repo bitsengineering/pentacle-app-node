@@ -18,7 +18,6 @@ exports.__esModule = true;
 exports.Peer = void 0;
 var crypto_1 = require("crypto");
 var bitcoin_protocol_1 = require("bitcoin-protocol");
-var bitcoin_util_1 = require("bitcoin-util");
 var through2 = require("through2");
 var utils_1 = require("./utils");
 var events_1 = require("events");
@@ -35,6 +34,7 @@ var LATENCY_EXP = 0.5; // coefficient used for latency exponential average
 var INITIAL_PING_N = 4; // send this many pings when we first connect
 var INITIAL_PING_INTERVAL = 250; // wait this many ms between initial pings
 var MIN_TIMEOUT = 4000; // lower bound for timeouts (in case latency is low)
+var nullHash = new Buffer("0000000000000000000000000000000000000000000000000000000000000000", "hex");
 var serviceBits = [
     { key: "NODE_NETWORK", value: 0 },
     { key: "NODE_GETUTXO", value: 1 },
@@ -213,12 +213,9 @@ var Peer = /** @class */ (function (_super) {
         }
         this.version = message;
         if (message.version < this.minimumVersion) {
-            return this._error(new Error("Peer is using an incompatible protocol version: " +
-                ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
+            return this._error(new Error("Peer is using an incompatible protocol version: " + ("required: >= " + this.minimumVersion + ", actual: " + message.version)));
         }
-        if (this.requireBloom &&
-            message.version >= BLOOMSERVICE_VERSION &&
-            !this.services.NODE_BLOOM) {
+        if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
             return this._error(new Error("Node does not provide NODE_BLOOM service"));
         }
         this.send("verack");
@@ -379,7 +376,7 @@ var Peer = /** @class */ (function (_super) {
             opts = {};
             locator = [];
         }
-        opts.stop = opts.stop || bitcoin_util_1["default"].nullHash;
+        opts.stop = opts.stop || nullHash;
         opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
         var timeout;
         var onHeaders = function (headers) {
