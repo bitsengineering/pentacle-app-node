@@ -315,7 +315,7 @@ export class Peer extends EventEmitter {
     let timeout: any;
     const events = wrapEvents(this);
     const output = new Array(hashes.length);
-    const remaining = hashes.length;
+    let remaining = hashes.length;
     hashes.forEach((hash: any, i: any) => {
       const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
         "base64"
