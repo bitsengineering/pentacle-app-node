@@ -70,11 +70,11 @@ var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function 
         ], {}, function (_err, blocks) {
             console.log("err", _err);
             // console.log("blocks", blocks);
-            blocks.forEach(function (block) {
-                // console.log(block);
-                // block.transactions.forEach((transaction: any) => {
-                //   // console.log(transaction);
-                // });
+            blocks === null || blocks === void 0 ? void 0 : blocks.forEach(function (block) {
+                console.log(block);
+                block.transactions.forEach(function (transaction) {
+                    console.log(transaction);
+                });
             });
         });
     });

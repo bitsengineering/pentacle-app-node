@@ -4,6 +4,7 @@ import * as params from "./lib/params/params";
 // import PeerGroup from "./peerGroup.js";
 import { Peer } from "./lib/peer";
 import { Peers } from "./lib/peers";
+import { Block, Transaction } from "./model";
 
 // const GENESIS_BLOCK_HASH =
 //   "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
@@ -89,14 +90,14 @@ const socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, () => {
         ).reverse(),
       ],
       {},
-      (_err: any, blocks: any) => {
+      (_err: Error | null, blocks?: Array<Block>) => {
         console.log("err", _err);
         // console.log("blocks", blocks);
-        blocks.forEach((block: any) => {
-          // console.log(block);
-          // block.transactions.forEach((transaction: any) => {
-          //   // console.log(transaction);
-          // });
+        blocks?.forEach((block: Block) => {
+          console.log(block);
+          block.transactions.forEach((transaction: Transaction) => {
+            console.log(transaction);
+          });
         });
       }
     );
