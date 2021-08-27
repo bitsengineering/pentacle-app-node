@@ -117,6 +117,7 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype.connect = function (socket) {
         var _this = this;
+        console.log("socket", typeof socket);
         if (!socket || !socket.readable || !socket.writable) {
             throw new Error("Must specify socket duplex stream");
         }
@@ -217,6 +218,7 @@ var Peer = /** @class */ (function (_super) {
         });
     };
     Peer.prototype._onVersion = function (message) {
+        console.log("messagexxxx", message);
         this.services = getServices(message.services);
         if (!this.services.NODE_NETWORK) {
             return this._error(new Error("Node does not provide NODE_NETWORK service"));
@@ -270,7 +272,6 @@ var Peer = /** @class */ (function (_super) {
         return MIN_TIMEOUT + this.latency * 10;
     };
     Peer.prototype.getBlocks = function (hashes, opts, cb) {
-        console.log("hashes", hashes);
         if (typeof opts === "function") {
             cb = opts;
             opts = {};

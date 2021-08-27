@@ -9,7 +9,15 @@ import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
 import Debug from "debug";
 import * as internal from "stream";
-import { Header, PayloadReference, ServiceBit } from "../model";
+import {
+  Block,
+  Header,
+  Message,
+  PayloadReference,
+  PingPong,
+  ServiceBit,
+  Version,
+} from "../model";
 
 const wrapEvents = require("event-cleanup");
 const debug = Debug("bitcoin-net:peer");
@@ -80,7 +88,7 @@ export class Peer extends EventEmitter {
   getTip: any;
   relay: boolean;
   pingInterval: any;
-  version: number | null;
+  version: number | null | Version;
   services: any | null;
   socket: any | null;
   _handshakeTimeout: any | null;
@@ -90,7 +98,7 @@ export class Peer extends EventEmitter {
   gettingHeaders: boolean;
   private _encoder: internal.Transform | undefined;
   private _decoder: internal.Transform | undefined;
-  _pingInterval?: NodeJS.Timer;
+  _pingInterval?: any;
   ready: any;
   verack: boolean;
 
@@ -105,7 +113,8 @@ export class Peer extends EventEmitter {
     this.requireBloom = opts.requireBloom && true;
     this.userAgent = opts.userAgent;
     if (!opts.userAgent) {
-      if ((process as any).browser) this.userAgent = `/${navigator.userAgent}/`;
+      if ((process as NodeJS.Process).browser)
+        this.userAgent = `/${navigator.userAgent}/`;
       else this.userAgent = `/node.js:${process.versions.node}/`;
       this.userAgent += `pentacle-app-node":1.0.0/`;
     }
@@ -142,6 +151,7 @@ export class Peer extends EventEmitter {
   }
 
   connect(socket: any) {
+    console.log("socket", typeof socket);
     if (!socket || !socket.readable || !socket.writable) {
       throw new Error("Must specify socket duplex stream");
     }
@@ -189,7 +199,7 @@ export class Peer extends EventEmitter {
     this._sendVersion();
   }
 
-  disconnect(err?: any) {
+  disconnect(err?: Error) {
     if (this.disconnected) return;
     this.disconnected = true;
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout);
@@ -198,10 +208,10 @@ export class Peer extends EventEmitter {
     this.emit("disconnect", err);
   }
 
-  ping(cb: any) {
+  ping(cb: (err: Error | null, elapsed: number, latency: number) => void) {
     const start = Date.now();
     const nonce = pseudoRandomBytes(8);
-    const onPong = (pong: any) => {
+    const onPong = (pong: PingPong) => {
       if (pong.nonce.compare(nonce) !== 0) return;
       this.removeListener("pong", onPong);
       const elapsed = Date.now() - start;
@@ -212,7 +222,7 @@ export class Peer extends EventEmitter {
     this.send("ping", { nonce });
   }
 
-  _error(err: any) {
+  _error(err: Error) {
     this.emit("error", err);
     this.disconnect(err);
   }
@@ -220,7 +230,7 @@ export class Peer extends EventEmitter {
   _registerListeners() {
     if (this._decoder) this._decoder.on("error", this._error.bind(this));
     if (this._decoder)
-      this._decoder.on("data", (message: any) => {
+      this._decoder.on("data", (message: Message) => {
         this.emit("message", message);
         this.emit(message.command, message.payload);
       });
@@ -253,7 +263,8 @@ export class Peer extends EventEmitter {
     });
   }
 
-  _onVersion(message: any) {
+  _onVersion(message: Version) {
+    console.log("messagexxxx", message);
     this.services = getServices(message.services);
 
     if (!this.services.NODE_NETWORK) {
@@ -287,7 +298,7 @@ export class Peer extends EventEmitter {
     this.emit("ready");
   }
 
-  _onceReady(cb: any) {
+  _onceReady(cb: (...args: any[]) => void) {
     if (this.ready) return cb();
     this.once("ready", cb);
   }
@@ -319,27 +330,26 @@ export class Peer extends EventEmitter {
   }
 
   getBlocks(
-    hashes: any,
+    hashes: Array<Buffer>,
     opts: any,
-    cb: (_err: Error | null, blocks?: any) => void
+    cb: (_err: Error | null, blocks?: Array<Block>) => void
   ) {
-    console.log("hashes", hashes);
     if (typeof opts === "function") {
       cb = opts;
       opts = {};
     }
     if (opts.timeout == null) opts.timeout = this._getTimeout();
 
-    let timeout: any;
+    let timeout: NodeJS.Timeout;
     const events = wrapEvents(this);
     const output = new Array(hashes.length);
     let remaining = hashes.length;
-    hashes.forEach((hash: any, i: any) => {
+    hashes.forEach((hash: Buffer, i: number) => {
       const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
         "base64"
       )}`;
 
-      events.once(event, (block: any) => {
+      events.once(event, (block: Block) => {
         output[i] = block;
         remaining--;
         if (remaining > 0) return;
