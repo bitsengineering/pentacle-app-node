@@ -9,6 +9,7 @@ import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
 import Debug from "debug";
 import * as internal from "stream";
+import { Header, PayloadReference, ServiceBit } from "../model";
 
 const wrapEvents = require("event-cleanup");
 const debug = Debug("bitcoin-net:peer");
@@ -29,12 +30,7 @@ const nullHash = Buffer.from(
   "hex"
 );
 
-interface ServiceBits {
-  key: string;
-  value: number;
-}
-
-const serviceBits: Array<ServiceBits> = [
+const serviceBits: Array<ServiceBit> = [
   { key: "NODE_NETWORK", value: 0 },
   { key: "NODE_GETUTXO", value: 1 },
   { key: "NODE_BLOOM", value: 2 },
@@ -42,9 +38,16 @@ const serviceBits: Array<ServiceBits> = [
   { key: "NODE_NETWORK_LIMITED", value: 10 },
 ];
 
-const getServices = (buf: any) => {
+// type Services = {
+//   NODE_NETWORK: boolean;
+//   NODE_BLOOM: boolean;
+//   NODE_WITNESS: boolean;
+//   NODE_NETWORK_LIMITED: boolean;
+// }
+
+const getServices = (buf: Buffer) => {
   const services: any = {};
-  serviceBits.forEach((sr: ServiceBits, index) => {
+  serviceBits.forEach((sr: ServiceBit) => {
     const byteIndex = Math.floor(sr.value / 8);
     const byte = buf.readUInt32LE(byteIndex);
     const bitIndex = sr.value % 8;
@@ -55,11 +58,17 @@ const getServices = (buf: any) => {
   return services;
 };
 
-const debugStream = (f: any) =>
-  through2.obj((message: string, enc: any, cb: any) => {
-    f(message);
-    cb(null, message);
-  });
+const debugStream = (f: (message: string) => void) =>
+  through2.obj(
+    (
+      message: string,
+      enc: any,
+      cb: (err: Error | null, message: string) => void
+    ) => {
+      f(message);
+      cb(null, message);
+    }
+  );
 
 export class Peer extends EventEmitter {
   params: any;
@@ -67,7 +76,7 @@ export class Peer extends EventEmitter {
   minimumVersion: number;
   requireBloom: boolean;
   userAgent: string;
-  handshakeTimeout: any;
+  handshakeTimeout: number;
   getTip: any;
   relay: boolean;
   pingInterval: any;
@@ -124,7 +133,9 @@ export class Peer extends EventEmitter {
     if (opts.socket) this.connect(opts.socket);
   }
 
-  send(command: any, payload?: any) {
+  send(command: string, payload?: PayloadReference) {
+    console.log("command", command);
+    console.log("payload", payload);
     // TODO?: maybe this should error if we try to write after close?
     if (!this.socket.writable) return;
     if (this._encoder) this._encoder.write({ command, payload });
@@ -307,7 +318,12 @@ export class Peer extends EventEmitter {
     return MIN_TIMEOUT + this.latency * 10;
   }
 
-  getBlocks(hashes: any, opts: any, cb?: any) {
+  getBlocks(
+    hashes: any,
+    opts: any,
+    cb: (_err: Error | null, blocks?: any) => void
+  ) {
+    console.log("hashes", hashes);
     if (typeof opts === "function") {
       cb = opts;
       opts = {};
@@ -332,10 +348,12 @@ export class Peer extends EventEmitter {
       });
     });
 
-    const inventory = hashes.map((hash: any) => ({
-      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-      hash,
-    }));
+    const inventory: Array<{ type: number; hash: Buffer }> = hashes.map(
+      (hash: Buffer) => ({
+        type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+        hash,
+      })
+    );
     this.send("getdata", inventory);
 
     if (!opts.timeout) return;
@@ -417,7 +435,11 @@ export class Peer extends EventEmitter {
     }
   }
 
-  getHeaders(locator: any, opts: any, cb: any) {
+  getHeaders(
+    locator: Array<Buffer>,
+    opts: any,
+    cb: (_err: Error | null, headers?: Array<Header>) => void
+  ) {
     if (this.gettingHeaders) {
       this.getHeadersQueue.push({ locator, opts, cb });
       debug(
@@ -438,8 +460,8 @@ export class Peer extends EventEmitter {
 
     opts.stop = opts.stop || nullHash;
     opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
-    let timeout: any;
-    const onHeaders = (headers: any) => {
+    let timeout: NodeJS.Timeout;
+    const onHeaders = (headers: Array<Header>) => {
       if (timeout) clearTimeout(timeout);
       cb(null, headers);
       this._nextHeadersRequest();
@@ -459,6 +481,7 @@ export class Peer extends EventEmitter {
       cb(error);
       this._nextHeadersRequest();
     }, opts.timeout);
+    console.log("timeout", timeout);
   }
 
   _nextHeadersRequest() {

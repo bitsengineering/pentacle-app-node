@@ -42,9 +42,15 @@ var serviceBits = [
     { key: "NODE_WITNESS", value: 3 },
     { key: "NODE_NETWORK_LIMITED", value: 10 },
 ];
+// type Services = {
+//   NODE_NETWORK: boolean;
+//   NODE_BLOOM: boolean;
+//   NODE_WITNESS: boolean;
+//   NODE_NETWORK_LIMITED: boolean;
+// }
 var getServices = function (buf) {
     var services = {};
-    serviceBits.forEach(function (sr, index) {
+    serviceBits.forEach(function (sr) {
         var byteIndex = Math.floor(sr.value / 8);
         var byte = buf.readUInt32LE(byteIndex);
         var bitIndex = sr.value % 8;
@@ -101,6 +107,8 @@ var Peer = /** @class */ (function (_super) {
         return _this;
     }
     Peer.prototype.send = function (command, payload) {
+        console.log("command", command);
+        console.log("payload", payload);
         // TODO?: maybe this should error if we try to write after close?
         if (!this.socket.writable)
             return;
@@ -262,6 +270,7 @@ var Peer = /** @class */ (function (_super) {
         return MIN_TIMEOUT + this.latency * 10;
     };
     Peer.prototype.getBlocks = function (hashes, opts, cb) {
+        console.log("hashes", hashes);
         if (typeof opts === "function") {
             cb = opts;
             opts = {};
@@ -409,6 +418,7 @@ var Peer = /** @class */ (function (_super) {
             cb(error);
             _this._nextHeadersRequest();
         }, opts.timeout);
+        console.log("timeout", timeout);
     };
     Peer.prototype._nextHeadersRequest = function () {
         this.gettingHeaders = false;
