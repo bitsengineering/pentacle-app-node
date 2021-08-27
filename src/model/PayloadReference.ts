@@ -1,6 +1,6 @@
 import Version from "./Version";
 import Inventory from "./Inventory";
-import Headers from "./Headers";
+import GetHeaders from "./GetHeaders";
 import PingPong from "./PingPong";
 import Decoder from "./Decoder";
 import Encoder from "./Encoder";
@@ -8,7 +8,7 @@ import Encoder from "./Encoder";
 type PayloadReference =
   | Version
   | Inventory
-  | Headers
+  | GetHeaders
   | PingPong
   | Decoder
   | Encoder;
