@@ -13,11 +13,15 @@ import {
   Block,
   Header,
   Message,
+  Opts,
+  Params,
   PayloadReference,
   PingPong,
   ServiceBit,
+  Transaction,
   Version,
 } from "../model";
+import { Socket } from "net";
 
 const wrapEvents = require("event-cleanup");
 const debug = Debug("bitcoin-net:peer");
@@ -79,30 +83,34 @@ const debugStream = (f: (message: string) => void) =>
   );
 
 export class Peer extends EventEmitter {
-  params: any;
+  params: Params;
   protocolVersion: number;
   minimumVersion: number;
-  requireBloom: boolean;
-  userAgent: string;
+  requireBloom?: boolean;
+  userAgent?: string;
   handshakeTimeout: number;
   getTip: any;
   relay: boolean;
   pingInterval: any;
   version: number | null | Version;
   services: any | null;
-  socket: any | null;
-  _handshakeTimeout: any | null;
+  socket: Socket | null;
+  _handshakeTimeout: NodeJS.Timeout | null;
   disconnected: boolean;
   latency: number;
-  getHeadersQueue: Array<any>;
+  getHeadersQueue: Array<{
+    locator: Array<Buffer>;
+    opts: Opts;
+    cb: (_err: Error | null, headers?: Array<Header>) => void;
+  }>;
   gettingHeaders: boolean;
   private _encoder: internal.Transform | undefined;
   private _decoder: internal.Transform | undefined;
   _pingInterval?: any;
-  ready: any;
+  ready?: boolean;
   verack: boolean;
 
-  constructor(params: any, opts: any) {
+  constructor(params: Params, opts: Opts) {
     assertParams(params);
 
     super();
@@ -146,7 +154,7 @@ export class Peer extends EventEmitter {
     console.log("command", command);
     console.log("payload", payload);
     // TODO?: maybe this should error if we try to write after close?
-    if (!this.socket.writable) return;
+    if (!this.socket?.writable) return;
     if (this._encoder) this._encoder.write({ command, payload });
   }
 
@@ -182,7 +190,7 @@ export class Peer extends EventEmitter {
         this._error(new Error("Peer handshake timed out"));
       }, this.handshakeTimeout);
       this.once("ready", () => {
-        clearTimeout(this._handshakeTimeout);
+        if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout);
         this._handshakeTimeout = null;
       });
     }
@@ -204,7 +212,7 @@ export class Peer extends EventEmitter {
     this.disconnected = true;
     if (this._handshakeTimeout) clearTimeout(this._handshakeTimeout);
     clearInterval(undefined);
-    this.socket.end();
+    this.socket?.end();
     this.emit("disconnect", err);
   }
 
@@ -310,13 +318,13 @@ export class Peer extends EventEmitter {
       timestamp: Math.round(Date.now() / 1000),
       receiverAddress: {
         services: SERVICES_FULL,
-        address: this.socket.remoteAddress || "0.0.0.0",
-        port: this.socket.remotePort || 0,
+        address: this.socket?.remoteAddress || "0.0.0.0",
+        port: this.socket?.remotePort || 0,
       },
       senderAddress: {
         services: SERVICES_SPV,
         address: "0.0.0.0",
-        port: this.socket.localPort || 0,
+        port: this.socket?.localPort || 0,
       },
       nonce: pseudoRandomBytes(8),
       userAgent: this.userAgent,
@@ -331,7 +339,7 @@ export class Peer extends EventEmitter {
 
   getBlocks(
     hashes: Array<Buffer>,
-    opts: any,
+    opts: Opts,
     cb: (_err: Error | null, blocks?: Array<Block>) => void
   ) {
     if (typeof opts === "function") {
@@ -378,13 +386,18 @@ export class Peer extends EventEmitter {
     }, opts.timeout);
   }
 
-  getTransactions(blockHash: any, txids: any, opts: any, cb: any) {
-    if (Array.isArray(blockHash)) {
-      cb = opts;
-      opts = txids;
-      txids = blockHash;
-      blockHash = null;
-    }
+  getTransactions(
+    blockHash: Buffer | null,
+    txids: Array<Buffer>,
+    opts: Opts,
+    cb: (err: Error | null, transactions?: Array<Transaction>) => void
+  ) {
+    // if (Array.isArray(blockHash)) {
+    //   cb = opts;
+    //   opts = txids;
+    //   txids = blockHash;
+    //   blockHash = null;
+    // }
     if (typeof opts === "function") {
       cb = opts;
       opts = {};
@@ -394,10 +407,10 @@ export class Peer extends EventEmitter {
 
     if (blockHash) {
       const txIndex: any = {};
-      txids.forEach((txid: any, i: any) => {
+      txids.forEach((txid: Buffer, i: number) => {
         txIndex[txid.toString("base64")] = i;
       });
-      this.getBlocks([blockHash], opts, (err: any, blocks: any) => {
+      this.getBlocks([blockHash], opts, (err: Error | null, blocks: any) => {
         if (err) return cb(err);
         for (let tx of blocks[0].transactions) {
           const id = getTxHash(tx).toString("base64");
@@ -412,10 +425,10 @@ export class Peer extends EventEmitter {
       if (opts.timeout == null) opts.timeout = this._getTimeout();
       // TODO: make a function for all these similar timeout request methods
 
-      let timeout: any;
+      let timeout: NodeJS.Timeout;
       let remaining = txids.length;
       const events = wrapEvents(this);
-      txids.forEach((txid: any, i: any) => {
+      txids.forEach((txid: Buffer, i: number) => {
         const hash = txid.toString("base64");
         this.once(`tx:${hash}`, (tx) => {
           output[i] = tx;
@@ -426,7 +439,7 @@ export class Peer extends EventEmitter {
         });
       });
 
-      const inventory = txids.map((hash: string) => ({
+      const inventory = txids.map((hash: Buffer) => ({
         type: INV.MSG_TX,
         hash,
       }));
@@ -447,7 +460,7 @@ export class Peer extends EventEmitter {
 
   getHeaders(
     locator: Array<Buffer>,
-    opts: any,
+    opts: Opts,
     cb: (_err: Error | null, headers?: Array<Header>) => void
   ) {
     if (this.gettingHeaders) {
@@ -491,13 +504,12 @@ export class Peer extends EventEmitter {
       cb(error);
       this._nextHeadersRequest();
     }, opts.timeout);
-    console.log("timeout", timeout);
   }
 
   _nextHeadersRequest() {
     this.gettingHeaders = false;
     if (this.getHeadersQueue.length === 0) return;
     const req = this.getHeadersQueue.shift();
-    this.getHeaders(req.locator, req.opts, req.cb);
+    if (req) this.getHeaders(req.locator, req.opts, req.cb);
   }
 }

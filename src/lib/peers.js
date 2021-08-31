@@ -37,6 +37,7 @@ var DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 var Peers = /** @class */ (function (_super) {
     __extends(Peers, _super);
     function Peers(params, opts) {
+        var _a;
         var _this = this;
         utils_1.assertParams(params);
         _this = _super.call(this) || this;
@@ -64,7 +65,7 @@ var Peers = /** @class */ (function (_super) {
                 : [];
             _this._webSeeds = _this._params.webSeeds.concat(envSeeds);
             try {
-                _this._exchange = peer_exchange_1["default"](params.magic.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
+                _this._exchange = peer_exchange_1["default"]((_a = params.magic) === null || _a === void 0 ? void 0 : _a.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
             }
             catch (err) {
                 // return this._error(err);
@@ -72,6 +73,7 @@ var Peers = /** @class */ (function (_super) {
             }
             _this._exchange.on("error", _this._error.bind(_this));
             _this._exchange.on("connect", function (stream) {
+                console.log("stream", stream);
                 _this._onConnection(null, stream);
             });
             if (!process.browser && acceptIncoming) {
@@ -107,7 +109,7 @@ var Peers = /** @class */ (function (_super) {
             return;
         }
         if (this.closed)
-            return socket.destroy();
+            return socket === null || socket === void 0 ? void 0 : socket.destroy();
         var opts = assign({ socket: socket }, this.peerOpts);
         var peer = new peer_1.Peer(this._params, opts);
         var onError = function (err) {

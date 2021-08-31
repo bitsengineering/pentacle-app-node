@@ -14,6 +14,8 @@ import {
   parseAddress,
 } from "./utils";
 import debug from "debug";
+import { Socket } from "net";
+import { Block, Params, Transaction } from "../model";
 
 const assign = require("object.assign/polyfill")();
 const once = require("once");
@@ -35,7 +37,7 @@ export class Peers extends EventEmitter {
   private _webSeeds: Array<string>;
   private _exchange: any;
   constructor(
-    params: { magic: { toString: (arg0: number) => any } },
+    params: any,
     opts?: {
       numPeers?: number;
       hardLimit?: boolean;
@@ -83,7 +85,9 @@ export class Peers extends EventEmitter {
         console.log(err);
       }
       this._exchange.on("error", this._error.bind(this));
-      this._exchange.on("connect", (stream: any) => {
+      this._exchange.on("connect", (stream: Socket) => {
+        console.log("stream", stream);
+
         this._onConnection(null, stream);
       });
       if (!process.browser && acceptIncoming) {
@@ -91,19 +95,19 @@ export class Peers extends EventEmitter {
       }
     }
 
-    this.on("block", (block) => {
+    this.on("block", (block: Block) => {
       this.emit(
         `block:${getBlockHash(block.header).toString("base64")}`,
         block
       );
     });
-    this.on("merkleblock", (block) => {
+    this.on("merkleblock", (block: Block) => {
       this.emit(
         `merkleblock:${getBlockHash(block.header).toString("base64")}`,
         block
       );
     });
-    this.on("tx", (tx) => {
+    this.on("tx", (tx: Transaction) => {
       this.emit(`tx:${getTxHash(tx).toString("base64")}`, tx);
     });
     this.once("peer", () => this.emit("connect"));
@@ -114,7 +118,7 @@ export class Peers extends EventEmitter {
   }
 
   // callback for peer discovery methods
-  _onConnection(err?: any, socket?: any) {
+  _onConnection(err?: Error | null, socket?: Socket) {
     if (err) {
       if (socket) socket.destroy();
       debug(`discovery connection error: ${err.message}`);
@@ -124,7 +128,7 @@ export class Peers extends EventEmitter {
       }
       return;
     }
-    if (this.closed) return socket.destroy();
+    if (this.closed) return socket?.destroy();
     let opts = assign({ socket }, this.peerOpts);
     let peer = new Peer(this._params, opts);
     let onError = (err: Error) => {

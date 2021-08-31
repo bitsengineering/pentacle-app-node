@@ -107,10 +107,11 @@ var Peer = /** @class */ (function (_super) {
         return _this;
     }
     Peer.prototype.send = function (command, payload) {
+        var _a;
         console.log("command", command);
         console.log("payload", payload);
         // TODO?: maybe this should error if we try to write after close?
-        if (!this.socket.writable)
+        if (!((_a = this.socket) === null || _a === void 0 ? void 0 : _a.writable))
             return;
         if (this._encoder)
             this._encoder.write({ command: command, payload: payload });
@@ -144,7 +145,8 @@ var Peer = /** @class */ (function (_super) {
                 _this._error(new Error("Peer handshake timed out"));
             }, this.handshakeTimeout);
             this.once("ready", function () {
-                clearTimeout(_this._handshakeTimeout);
+                if (_this._handshakeTimeout)
+                    clearTimeout(_this._handshakeTimeout);
                 _this._handshakeTimeout = null;
             });
         }
@@ -159,13 +161,14 @@ var Peer = /** @class */ (function (_super) {
         this._sendVersion();
     };
     Peer.prototype.disconnect = function (err) {
+        var _a;
         if (this.disconnected)
             return;
         this.disconnected = true;
         if (this._handshakeTimeout)
             clearTimeout(this._handshakeTimeout);
         clearInterval(undefined);
-        this.socket.end();
+        (_a = this.socket) === null || _a === void 0 ? void 0 : _a.end();
         this.emit("disconnect", err);
     };
     Peer.prototype.ping = function (cb) {
@@ -248,19 +251,20 @@ var Peer = /** @class */ (function (_super) {
         this.once("ready", cb);
     };
     Peer.prototype._sendVersion = function () {
+        var _a, _b, _c;
         this.send("version", {
             version: this.protocolVersion,
             services: SERVICES_SPV,
             timestamp: Math.round(Date.now() / 1000),
             receiverAddress: {
                 services: SERVICES_FULL,
-                address: this.socket.remoteAddress || "0.0.0.0",
-                port: this.socket.remotePort || 0
+                address: ((_a = this.socket) === null || _a === void 0 ? void 0 : _a.remoteAddress) || "0.0.0.0",
+                port: ((_b = this.socket) === null || _b === void 0 ? void 0 : _b.remotePort) || 0
             },
             senderAddress: {
                 services: SERVICES_SPV,
                 address: "0.0.0.0",
-                port: this.socket.localPort || 0
+                port: ((_c = this.socket) === null || _c === void 0 ? void 0 : _c.localPort) || 0
             },
             nonce: crypto_1.pseudoRandomBytes(8),
             userAgent: this.userAgent,
@@ -311,12 +315,12 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype.getTransactions = function (blockHash, txids, opts, cb) {
         var _this = this;
-        if (Array.isArray(blockHash)) {
-            cb = opts;
-            opts = txids;
-            txids = blockHash;
-            blockHash = null;
-        }
+        // if (Array.isArray(blockHash)) {
+        //   cb = opts;
+        //   opts = txids;
+        //   txids = blockHash;
+        //   blockHash = null;
+        // }
         if (typeof opts === "function") {
             cb = opts;
             opts = {};
@@ -419,14 +423,14 @@ var Peer = /** @class */ (function (_super) {
             cb(error);
             _this._nextHeadersRequest();
         }, opts.timeout);
-        console.log("timeout", timeout);
     };
     Peer.prototype._nextHeadersRequest = function () {
         this.gettingHeaders = false;
         if (this.getHeadersQueue.length === 0)
             return;
         var req = this.getHeadersQueue.shift();
-        this.getHeaders(req.locator, req.opts, req.cb);
+        if (req)
+            this.getHeaders(req.locator, req.opts, req.cb);
     };
     return Peer;
 }(events_1.EventEmitter));

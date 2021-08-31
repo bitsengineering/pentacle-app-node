@@ -10,6 +10,8 @@ import Version from "./Version";
 import Message from "./Message";
 import Block from "./Block";
 import Transaction from "./Transaction";
+import Params from "./Params";
+import Opts from "./Opts";
 
 export {
   Decoder,
@@ -24,4 +26,6 @@ export {
   Message,
   Block,
   Transaction,
+  Params,
+  Opts,
 };
