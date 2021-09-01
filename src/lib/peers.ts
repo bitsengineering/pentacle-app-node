@@ -15,7 +15,7 @@ import {
 } from "./utils";
 import debug from "debug";
 import { Socket } from "net";
-import { Block, Params, Transaction } from "../model";
+import { Block, Transaction } from "../model";
 
 const assign = require("object.assign/polyfill")();
 const once = require("once");
@@ -27,7 +27,7 @@ export class Peers extends EventEmitter {
   peers: any;
   private _hardLimit: boolean; // const debug = require("debug")("bitcoin-net:peergroup");
   websocketPort: number | null;
-  private _connectWeb: any;
+  private _connectWeb: boolean;
   connectTimeout: number;
   peerOpts: any;
   acceptIncoming: any;
@@ -44,7 +44,7 @@ export class Peers extends EventEmitter {
       connectWeb?: boolean;
       connectTimeout?: number;
       peerOpts?: any;
-      acceptIncoming?: any;
+      acceptIncoming?: boolean;
       wrtc?: any;
       exchangeOpts?: any;
     }

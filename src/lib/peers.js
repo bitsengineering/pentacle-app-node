@@ -37,7 +37,6 @@ var DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 var Peers = /** @class */ (function (_super) {
     __extends(Peers, _super);
     function Peers(params, opts) {
-        var _a;
         var _this = this;
         utils_1.assertParams(params);
         _this = _super.call(this) || this;
@@ -65,7 +64,8 @@ var Peers = /** @class */ (function (_super) {
                 : [];
             _this._webSeeds = _this._params.webSeeds.concat(envSeeds);
             try {
-                _this._exchange = peer_exchange_1["default"]((_a = params.magic) === null || _a === void 0 ? void 0 : _a.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
+                console.log("acceptIncoming", acceptIncoming);
+                _this._exchange = peer_exchange_1["default"](params.magic.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
             }
             catch (err) {
                 // return this._error(err);
