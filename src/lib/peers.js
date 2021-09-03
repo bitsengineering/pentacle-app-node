@@ -64,7 +64,6 @@ var Peers = /** @class */ (function (_super) {
                 : [];
             _this._webSeeds = _this._params.webSeeds.concat(envSeeds);
             try {
-                console.log("acceptIncoming", acceptIncoming);
                 _this._exchange = peer_exchange_1["default"](params.magic.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
             }
             catch (err) {

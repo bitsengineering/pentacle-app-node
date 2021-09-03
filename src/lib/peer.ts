@@ -58,7 +58,7 @@ const serviceBits: Array<ServiceBit> = [
 // }
 
 const getServices = (buf: Buffer) => {
-  const services: any = {};
+  const services: { [key: string]: boolean } = {};
   serviceBits.forEach((sr: ServiceBit) => {
     const byteIndex = Math.floor(sr.value / 8);
     const byte = buf.readUInt32LE(byteIndex);
@@ -89,11 +89,11 @@ export class Peer extends EventEmitter {
   requireBloom?: boolean;
   userAgent?: string;
   handshakeTimeout: number;
-  getTip: any;
+  getTip?: () => { height: number };
   relay: boolean;
-  pingInterval: any;
+  pingInterval: number;
   version: number | null | Version;
-  services: any | null;
+  services: { [key: string]: boolean } | null;
   socket: Socket | null;
   _handshakeTimeout: NodeJS.Timeout | null;
   disconnected: boolean;
@@ -106,7 +106,7 @@ export class Peer extends EventEmitter {
   gettingHeaders: boolean;
   private _encoder: internal.Transform | undefined;
   private _decoder: internal.Transform | undefined;
-  _pingInterval?: any;
+  _pingInterval?: NodeJS.Timeout;
   ready?: boolean;
   verack: boolean;
 
@@ -151,15 +151,12 @@ export class Peer extends EventEmitter {
   }
 
   send(command: string, payload?: PayloadReference) {
-    console.log("command", command);
-    console.log("payload", payload);
     // TODO?: maybe this should error if we try to write after close?
     if (!this.socket?.writable) return;
     if (this._encoder) this._encoder.write({ command, payload });
   }
 
-  connect(socket: any) {
-    console.log("socket", typeof socket);
+  connect(socket: Socket) {
     if (!socket || !socket.readable || !socket.writable) {
       throw new Error("Must specify socket duplex stream");
     }
@@ -197,7 +194,11 @@ export class Peer extends EventEmitter {
 
     // set up ping interval and initial pings
     this.once("ready", () => {
-      this._pingInterval = setInterval(this.ping.bind(this), this.pingInterval);
+      this._pingInterval = (setInterval(
+        this.ping.bind(this),
+        this.pingInterval
+      ) as unknown) as NodeJS.Timeout;
+
       for (let i = 0; i < INITIAL_PING_N; i++) {
         setTimeout(this.ping.bind(this), INITIAL_PING_INTERVAL * i);
       }
@@ -272,7 +273,6 @@ export class Peer extends EventEmitter {
   }
 
   _onVersion(message: Version) {
-    console.log("messagexxxx", message);
     this.services = getServices(message.services);
 
     if (!this.services.NODE_NETWORK) {
@@ -406,7 +406,7 @@ export class Peer extends EventEmitter {
     const output = new Array(txids.length);
 
     if (blockHash) {
-      const txIndex: any = {};
+      const txIndex: { [key: string]: number } = {};
       txids.forEach((txid: Buffer, i: number) => {
         txIndex[txid.toString("base64")] = i;
       });

@@ -108,8 +108,6 @@ var Peer = /** @class */ (function (_super) {
     }
     Peer.prototype.send = function (command, payload) {
         var _a;
-        console.log("command", command);
-        console.log("payload", payload);
         // TODO?: maybe this should error if we try to write after close?
         if (!((_a = this.socket) === null || _a === void 0 ? void 0 : _a.writable))
             return;
@@ -118,7 +116,6 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype.connect = function (socket) {
         var _this = this;
-        console.log("socket", typeof socket);
         if (!socket || !socket.readable || !socket.writable) {
             throw new Error("Must specify socket duplex stream");
         }
@@ -221,7 +218,6 @@ var Peer = /** @class */ (function (_super) {
         });
     };
     Peer.prototype._onVersion = function (message) {
-        console.log("messagexxxx", message);
         this.services = getServices(message.services);
         if (!this.services.NODE_NETWORK) {
             return this._error(new Error("Node does not provide NODE_NETWORK service"));
