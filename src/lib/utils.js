@@ -1,6 +1,6 @@
 "use strict";
 exports.__esModule = true;
-exports.getTxHash = exports.getBlockHash = exports.sha256 = exports.assertParams = exports.parseAddress = exports.getRandom = void 0;
+exports.toHexString = exports.getTxHash = exports.getBlockHash = exports.sha256 = exports.assertParams = exports.parseAddress = exports.getRandom = void 0;
 var url = require("url");
 var crypto_1 = require("crypto");
 var encodeHeader = require("bitcoin-protocol").types.header.encode;
@@ -38,3 +38,9 @@ var getTxHash = function (tx) {
     return exports.sha256(exports.sha256(txBytes));
 };
 exports.getTxHash = getTxHash;
+var toHexString = function (byteArray) {
+    return Array.from(byteArray, function (byte) {
+        return ("0" + (byte & 0xff).toString(16)).slice(-2);
+    }).join("");
+};
+exports.toHexString = toHexString;
