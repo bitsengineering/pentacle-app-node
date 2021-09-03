@@ -1,6 +1,6 @@
 import * as url from "url";
 import { createHash } from "crypto";
-import { Params } from "../model";
+import { PeerParams } from "../model";
 const encodeHeader = require("bitcoin-protocol").types.header.encode;
 const encodeTx = require("bitcoin-protocol").types.transaction.encode;
 
@@ -14,7 +14,7 @@ export const parseAddress = (address: string) => {
   return url.parse("x://" + address);
 };
 
-export const assertParams = (params: Params) => {
+export const assertParams = (params: PeerParams) => {
   // TODO: check more things
   // TODO: give more specific errors
   if (!params || params.magic == null || !params.defaultPort) {
