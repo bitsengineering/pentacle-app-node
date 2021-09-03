@@ -15,14 +15,14 @@ import {
 } from "./utils";
 import debug from "debug";
 import { Socket } from "net";
-import { Block, Transaction } from "../model";
+import { Block, PeerParams, PeersParams, Transaction } from "../model";
 
 const assign = require("object.assign/polyfill")();
 const once = require("once");
 const DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 
 export class Peers extends EventEmitter {
-  private _params: any;
+  private _params: PeersParams;
   private _numPeers: number;
   peers: any;
   private _hardLimit: boolean; // const debug = require("debug")("bitcoin-net:peergroup");
@@ -30,14 +30,14 @@ export class Peers extends EventEmitter {
   private _connectWeb: boolean;
   connectTimeout: number;
   peerOpts: any;
-  acceptIncoming: any;
+  acceptIncoming?: boolean;
   connecting: boolean;
   closed: boolean;
   accepting: boolean;
-  private _webSeeds: Array<string>;
+  private _webSeeds?: Array<string>;
   private _exchange: any;
   constructor(
-    params: any,
+    params: PeerParams,
     opts?: {
       numPeers?: number;
       hardLimit?: boolean;
@@ -74,12 +74,13 @@ export class Peers extends EventEmitter {
       let envSeeds = process.env.WEB_SEED
         ? process.env.WEB_SEED.split(",").map((s) => s.trim())
         : [];
-      this._webSeeds = this._params.webSeeds.concat(envSeeds);
+      this._webSeeds = this._params.webSeeds?.concat(envSeeds);
       try {
         this._exchange = Exchange(
-          params.magic.toString(16),
+          params.magic?.toString(16),
           assign({ wrtc, acceptIncoming }, opts.exchangeOpts)
         );
+        console.log("_exchangeee", this._exchange);
       } catch (err: any) {
         // return this._error(err);
         console.log(err);
@@ -186,7 +187,7 @@ export class Peers extends EventEmitter {
   // connects to a random TCP peer via a random DNS seed
   // (selected from `dnsSeeds` in the params)
   _connectDNSPeer(cb: (arg0: NodeJS.ErrnoException) => void) {
-    let seeds = this._params.dnsSeeds;
+    let seeds = this._params.dnsSeeds || [];
     let seed = getRandom(seeds);
     resolve(seed, (err, addresses) => {
       if (err) return cb(err);
@@ -197,7 +198,7 @@ export class Peers extends EventEmitter {
 
   // connects to a random TCP peer from `staticPeers` in the params
   _connectStaticPeer(cb: any) {
-    let peers = this._params.staticPeers;
+    let peers = this._params.staticPeers || [];
     let address = getRandom(peers);
     let peer = parseAddress(address);
     this._connectTCP(peer.hostname, peer.port || this._params.defaultPort, cb);
@@ -226,7 +227,7 @@ export class Peers extends EventEmitter {
 
   // connects to the peer-exchange peers provided by the params
   _connectWebSeeds() {
-    this._webSeeds.forEach((seed: any) => {
+    this._webSeeds?.forEach((seed: any) => {
       debug(`connecting to web seed: ${JSON.stringify(seed, null, "  ")}`);
       const socket = ws(seed);
       socket.on("error", (err: any) => this._error(err));
@@ -283,7 +284,7 @@ export class Peers extends EventEmitter {
     // first, try to connect to web seeds so we can get web peers
     // once we have a few, start filling peers via any random
     // peer discovery method
-    if (this._connectWeb && this._params.webSeeds && this._webSeeds.length) {
+    if (this._connectWeb && this._params.webSeeds && this._webSeeds?.length) {
       this.once("webSeed", () => this._fillPeers());
       return this._connectWebSeeds();
     }

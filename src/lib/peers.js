@@ -37,6 +37,7 @@ var DEFAULT_PXP_PORT = 8192; // default port for peer-exchange nodes
 var Peers = /** @class */ (function (_super) {
     __extends(Peers, _super);
     function Peers(params, opts) {
+        var _a, _b;
         var _this = this;
         utils_1.assertParams(params);
         _this = _super.call(this) || this;
@@ -62,9 +63,10 @@ var Peers = /** @class */ (function (_super) {
             var envSeeds = process.env.WEB_SEED
                 ? process.env.WEB_SEED.split(",").map(function (s) { return s.trim(); })
                 : [];
-            _this._webSeeds = _this._params.webSeeds.concat(envSeeds);
+            _this._webSeeds = (_a = _this._params.webSeeds) === null || _a === void 0 ? void 0 : _a.concat(envSeeds);
             try {
-                _this._exchange = peer_exchange_1["default"](params.magic.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
+                _this._exchange = peer_exchange_1["default"]((_b = params.magic) === null || _b === void 0 ? void 0 : _b.toString(16), assign({ wrtc: wrtc, acceptIncoming: acceptIncoming }, opts.exchangeOpts));
+                console.log("_exchangeee", _this._exchange);
             }
             catch (err) {
                 // return this._error(err);
@@ -170,7 +172,7 @@ var Peers = /** @class */ (function (_super) {
     // (selected from `dnsSeeds` in the params)
     Peers.prototype._connectDNSPeer = function (cb) {
         var _this = this;
-        var seeds = this._params.dnsSeeds;
+        var seeds = this._params.dnsSeeds || [];
         var seed = utils_1.getRandom(seeds);
         dns_1.resolve(seed, function (err, addresses) {
             if (err)
@@ -181,7 +183,7 @@ var Peers = /** @class */ (function (_super) {
     };
     // connects to a random TCP peer from `staticPeers` in the params
     Peers.prototype._connectStaticPeer = function (cb) {
-        var peers = this._params.staticPeers;
+        var peers = this._params.staticPeers || [];
         var address = utils_1.getRandom(peers);
         var peer = utils_1.parseAddress(address);
         this._connectTCP(peer.hostname, peer.port || this._params.defaultPort, cb);
@@ -209,7 +211,8 @@ var Peers = /** @class */ (function (_super) {
     // connects to the peer-exchange peers provided by the params
     Peers.prototype._connectWebSeeds = function () {
         var _this = this;
-        this._webSeeds.forEach(function (seed) {
+        var _a;
+        (_a = this._webSeeds) === null || _a === void 0 ? void 0 : _a.forEach(function (seed) {
             debug_1["default"]("connecting to web seed: " + JSON.stringify(seed, null, "  "));
             var socket = websocket_stream_1["default"](seed);
             socket.on("error", function (err) { return _this._error(err); });
@@ -251,6 +254,7 @@ var Peers = /** @class */ (function (_super) {
     // initializes the PeerGroup by creating peer connections
     Peers.prototype.connect = function (onConnect) {
         var _this = this;
+        var _a;
         debug_1["default"]("connect called");
         this.connecting = true;
         if (onConnect)
@@ -258,7 +262,7 @@ var Peers = /** @class */ (function (_super) {
         // first, try to connect to web seeds so we can get web peers
         // once we have a few, start filling peers via any random
         // peer discovery method
-        if (this._connectWeb && this._params.webSeeds && this._webSeeds.length) {
+        if (this._connectWeb && this._params.webSeeds && ((_a = this._webSeeds) === null || _a === void 0 ? void 0 : _a.length)) {
             this.once("webSeed", function () { return _this._fillPeers(); });
             return this._connectWebSeeds();
         }
