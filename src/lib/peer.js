@@ -330,14 +330,16 @@ var Peer = /** @class */ (function (_super) {
             this.getBlocks([blockHash], opts, function (err, blocks) {
                 if (err)
                     return cb(err);
-                for (var _i = 0, _a = blocks[0].transactions; _i < _a.length; _i++) {
-                    var tx_1 = _a[_i];
-                    var id = utils_1.getTxHash(tx_1).toString("base64");
-                    var i = txIndex_1[id];
-                    if (i == null)
-                        continue;
-                    delete txIndex_1[id];
-                    output[i] = tx_1;
+                if (blocks) {
+                    for (var _i = 0, _a = blocks[0].transactions; _i < _a.length; _i++) {
+                        var tx_1 = _a[_i];
+                        var id = utils_1.getTxHash(tx_1).toString("base64");
+                        var i = txIndex_1[id];
+                        if (i == null)
+                            continue;
+                        delete txIndex_1[id];
+                        output[i] = tx_1;
+                    }
                 }
                 cb(null, output);
             });

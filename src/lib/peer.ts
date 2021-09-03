@@ -14,7 +14,7 @@ import {
   Header,
   Message,
   Opts,
-  Params,
+  PeerParams,
   PayloadReference,
   PingPong,
   ServiceBit,
@@ -83,7 +83,7 @@ const debugStream = (f: (message: string) => void) =>
   );
 
 export class Peer extends EventEmitter {
-  params: Params;
+  params: PeerParams;
   protocolVersion: number;
   minimumVersion: number;
   requireBloom?: boolean;
@@ -110,7 +110,7 @@ export class Peer extends EventEmitter {
   ready?: boolean;
   verack: boolean;
 
-  constructor(params: Params, opts: Opts) {
+  constructor(params: PeerParams, opts: Opts) {
     assertParams(params);
 
     super();
@@ -410,17 +410,23 @@ export class Peer extends EventEmitter {
       txids.forEach((txid: Buffer, i: number) => {
         txIndex[txid.toString("base64")] = i;
       });
-      this.getBlocks([blockHash], opts, (err: Error | null, blocks: any) => {
-        if (err) return cb(err);
-        for (let tx of blocks[0].transactions) {
-          const id = getTxHash(tx).toString("base64");
-          const i = txIndex[id];
-          if (i == null) continue;
-          delete txIndex[id];
-          output[i] = tx;
+      this.getBlocks(
+        [blockHash],
+        opts,
+        (err: Error | null, blocks?: Array<Block>) => {
+          if (err) return cb(err);
+          if (blocks) {
+            for (let tx of blocks[0].transactions) {
+              const id = getTxHash(tx).toString("base64");
+              const i = txIndex[id];
+              if (i == null) continue;
+              delete txIndex[id];
+              output[i] = tx;
+            }
+          }
+          cb(null, output);
         }
-        cb(null, output);
-      });
+      );
     } else {
       if (opts.timeout == null) opts.timeout = this._getTimeout();
       // TODO: make a function for all these similar timeout request methods
