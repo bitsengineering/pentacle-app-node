@@ -110,21 +110,21 @@ var Peer = /** @class */ (function (_super) {
         return new Promise(function (resolve, reject) {
             var _a;
             if (!((_a = _this.socket) === null || _a === void 0 ? void 0 : _a.writable))
-                reject(new Error("socket is not writable"));
+                reject(new Error("socket is not writable " + command));
             if (!_this._encoder)
                 reject(new Error("Encoder is undefined"));
             if (_this._encoder) {
-                var nodejsTimeout_1 = setTimeout(function () {
-                    debug(command + " timed out: " + timeout + " ms");
-                    if (eventName)
-                        _this.removeListener(eventName, resolve);
-                    var error = new Error("Request timed out");
-                    reject(error);
-                }, timeout);
                 if (eventName) {
+                    var nodejsTimeout_1 = setTimeout(function () {
+                        debug(command + " timed out: " + timeout + " ms");
+                        if (eventName)
+                            _this.removeListener(eventName, resolve);
+                        var error = new Error("Request timed out");
+                        reject(error);
+                    }, timeout);
                     _this.once(eventName, function (t) {
-                        if (!nodejsTimeout_1)
-                            clearTimeout(nodejsTimeout_1);
+                        console.log("nodejsTimeout", nodejsTimeout_1);
+                        clearTimeout(nodejsTimeout_1);
                         resolve(t);
                     });
                 }

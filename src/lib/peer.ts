@@ -150,21 +150,24 @@ export class Peer extends EventEmitter {
     timeout: number = this._getTimeout()
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      if (!this.socket?.writable) reject(new Error("socket is not writable"));
+      if (!this.socket?.writable)
+        reject(new Error(`socket is not writable ${command}`));
 
       if (!this._encoder) reject(new Error("Encoder is undefined"));
 
       if (this._encoder) {
-        let nodejsTimeout: NodeJS.Timeout = setTimeout(() => {
-          debug(`${command} timed out: ${timeout} ms`);
-          if (eventName) this.removeListener(eventName, resolve);
-          const error = new Error("Request timed out");
-          reject(error);
-        }, timeout);
-
         if (eventName) {
+          let nodejsTimeout: NodeJS.Timeout = setTimeout(() => {
+            debug(`${command} timed out: ${timeout} ms`);
+            if (eventName) this.removeListener(eventName, resolve);
+            const error = new Error("Request timed out");
+            reject(error);
+          }, timeout);
+
           this.once(eventName, (t: T) => {
-            if (!nodejsTimeout) clearTimeout(nodejsTimeout);
+            console.log("nodejsTimeout", nodejsTimeout);
+
+            clearTimeout(nodejsTimeout);
             resolve(t);
           });
         }
