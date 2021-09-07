@@ -20,6 +20,7 @@ import {
   ServiceBit,
   Transaction,
   Version,
+  GetHeadersParam,
 } from "../model";
 import { Socket } from "net";
 
@@ -98,12 +99,6 @@ export class Peer extends EventEmitter {
   _handshakeTimeout: NodeJS.Timeout | null;
   disconnected: boolean;
   latency: number;
-  getHeadersQueue: Array<{
-    locator: Array<Buffer>;
-    opts: Opts;
-    cb: (_err: Error | null, headers?: Array<Header>) => void;
-  }>;
-  gettingHeaders: boolean;
   private _encoder: internal.Transform | undefined;
   private _decoder: internal.Transform | undefined;
   _pingInterval?: NodeJS.Timeout;
@@ -139,8 +134,6 @@ export class Peer extends EventEmitter {
     this.disconnected = false;
     this.latency = 2 * 1000; // default to 2s
 
-    this.getHeadersQueue = [];
-    this.gettingHeaders = false;
     this.verack = false;
 
     this._pingInterval = undefined;
@@ -465,57 +458,37 @@ export class Peer extends EventEmitter {
   }
 
   getHeaders(
-    locator: Array<Buffer>,
-    opts: Opts,
-    cb: (_err: Error | null, headers?: Array<Header>) => void
-  ) {
-    if (this.gettingHeaders) {
-      this.getHeadersQueue.push({ locator, opts, cb });
-      debug(
-        `queued "getHeaders" request: queue size=${this.getHeadersQueue.length}`
-      );
-      return;
-    }
-    this.gettingHeaders = true;
-
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    } else if (typeof locator === "function") {
-      cb = locator;
-      opts = {};
-      locator = [];
-    }
-
+    locator: Buffer,
+    opts: Opts = {}
+    // cb: (_err: Error | null, headers?: Array<Header>) => void
+  ): Promise<Array<Header>> {
     opts.stop = opts.stop || nullHash;
-    opts.timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
-    let timeout: NodeJS.Timeout;
-    const onHeaders = (headers: Array<Header>) => {
-      if (timeout) clearTimeout(timeout);
-      cb(null, headers);
-      this._nextHeadersRequest();
-    };
-    this.once("headers", onHeaders);
-    this.send("getheaders", {
-      version: this.protocolVersion,
-      locator,
-      hashStop: opts.stop,
-    });
-    if (!opts.timeout) return;
-    timeout = setTimeout(() => {
-      debug(`getHeaders timed out: ${opts.timeout} ms`);
-      this.removeListener("headers", onHeaders);
-      const error = new Error("Request timed out");
-      // error.timeout = true;
-      cb(error);
-      this._nextHeadersRequest();
-    }, opts.timeout);
-  }
 
-  _nextHeadersRequest() {
-    this.gettingHeaders = false;
-    if (this.getHeadersQueue.length === 0) return;
-    const req = this.getHeadersQueue.shift();
-    if (req) this.getHeaders(req.locator, req.opts, req.cb);
+    const getHeadersParams: GetHeadersParam = {
+      version: this.protocolVersion,
+      locator: [locator],
+      hashStop: opts.stop,
+    };
+
+    return new Promise((resolve, reject) => {
+      debug(`queued "getHeaders" request started.`);
+
+      let nodejsTimeout: NodeJS.Timeout;
+      const timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
+      const onHeaders = (headers: Array<Header>) => {
+        if (nodejsTimeout) clearTimeout(nodejsTimeout);
+        debug(`queued "getHeaders" request successly finished.`);
+        resolve(headers);
+      };
+      this.once("headers", onHeaders);
+      this.send("getheaders", getHeadersParams);
+
+      nodejsTimeout = setTimeout(() => {
+        debug(`getHeaders timed out: ${opts.timeout} ms`);
+        this.removeListener("headers", onHeaders);
+        const error = new Error("Request timed out");
+        reject(error);
+      }, timeout);
+    });
   }
 }

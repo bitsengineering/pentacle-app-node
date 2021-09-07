@@ -9,59 +9,59 @@ import { Block, Header, Transaction } from "./model";
 /* ****** */
 //PEER GROUP CONNECTION
 
-const GENESIS_BLOCK_HASH =
-  "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
+// const GENESIS_BLOCK_HASH =
+//   "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
 
-const peerGroup = new Peers(params);
+// const peerGroup = new Peers(params);
 
-peerGroup.on("connect", () => {
-  console.log("connected");
-  // getPeersBlocks();
-  getPeersHeaders();
-});
+// peerGroup.on("connect", () => {
+//   console.log("connected");
+//   // getPeersBlocks();
+//   getPeersHeaders();
+// });
 
-// create connections to peers
-peerGroup.connect();
+// // create connections to peers
+// peerGroup.connect();
 
-const getPeersBlocks = () => {
-  peerGroup.getBlocks(
-    [Buffer.from(GENESIS_BLOCK_HASH, "hex").reverse()],
-    {},
-    (err: Error, blocks: Array<Block>) => {
-      if (err == null) {
-        console.log("getBlocks response for Genesis block:");
+// const getPeersBlocks = () => {
+//   peerGroup.getBlocks(
+//     [Buffer.from(GENESIS_BLOCK_HASH, "hex").reverse()],
+//     {},
+//     (err: Error, blocks: Array<Block>) => {
+//       if (err == null) {
+//         console.log("getBlocks response for Genesis block:");
 
-        blocks.forEach((block: Block) => {
-          // console.log(block);
-          block.transactions.forEach((transaction: Transaction) => {
-            // console.log(transaction);
-          });
-        });
-      } else {
-        console.error("getBlocks response error:");
-        console.error(err);
-      }
-    }
-  );
-};
+//         blocks.forEach((block: Block) => {
+//           // console.log(block);
+//           block.transactions.forEach((transaction: Transaction) => {
+//             // console.log(transaction);
+//           });
+//         });
+//       } else {
+//         console.error("getBlocks response error:");
+//         console.error(err);
+//       }
+//     }
+//   );
+// };
 
-const getPeersHeaders = () => {
-  peerGroup.getHeaders(
-    [Buffer.from(GENESIS_BLOCK_HASH, "hex").reverse()],
-    {},
-    (err: any, headers: any[]) => {
-      if (err == null) {
-        console.log("getHeaders response for Genesis block:");
-        console.log(headers.length);
-        console.log(headers.slice(0, 10));
-        console.log(JSON.stringify(headers));
-      } else {
-        console.error("getHeaders response error:");
-        console.error(err);
-      }
-    }
-  );
-};
+// const getPeersHeaders = () => {
+//   peerGroup.getHeaders(
+//     [Buffer.from(GENESIS_BLOCK_HASH, "hex").reverse()],
+//     {},
+//     (err: any, headers: any[]) => {
+//       if (err == null) {
+//         console.log("getHeaders response for Genesis block:");
+//         console.log(headers.length);
+//         console.log(headers.slice(0, 10));
+//         console.log(JSON.stringify(headers));
+//       } else {
+//         console.error("getHeaders response error:");
+//         console.error(err);
+//       }
+//     }
+//   );
+// };
 
 /* ****** */
 
@@ -76,29 +76,29 @@ const socket: Socket = net.connect(
 
     peer.once("ready", () => {
       // GET BLOCKS
-      getPeerBlocks();
+      // getPeerBlocks();
 
       //GET HEADERS
       getPeerHeaders();
 
       // GET TRANSACTIONS
-      getPeerTransactions();
+      // getPeerTransactions();
     });
 
     const getPeerHeaders = () => {
-      peer.getHeaders(
-        [
+      peer
+        .getHeaders(
           Buffer.from(
             "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
             "hex"
-          ).reverse(),
-        ],
-        {},
-        (_err: Error | null, headers?: Array<Header>) => {
-          console.log("err", _err);
+          ).reverse()
+        )
+        .then((headers?: Array<Header>) => {
           console.log("headers", headers);
-        }
-      );
+        })
+        .catch((error) => {
+          console.log(error);
+        });
     };
 
     const getPeerBlocks = () => {

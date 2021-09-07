@@ -1,7 +1,7 @@
 import Decoder from "./Decoder";
 import Encoder from "./Encoder";
 import Header from "./Header";
-import GetHeaders from "./GetHeaders";
+import GetHeadersParam from "./GetHeadersParam";
 import Inventory from "./Inventory";
 import PayloadReference from "./PayloadReference";
 import PingPong from "./PingPong";
@@ -18,7 +18,7 @@ export {
   Decoder,
   Encoder,
   Header,
-  GetHeaders,
+  GetHeadersParam,
   Inventory,
   PayloadReference,
   PingPong,
