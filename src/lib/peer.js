@@ -104,13 +104,33 @@ var Peer = /** @class */ (function (_super) {
             _this.connect(opts.socket);
         return _this;
     }
-    Peer.prototype.send = function (command, payload) {
-        var _a;
-        // TODO?: maybe this should error if we try to write after close?
-        if (!((_a = this.socket) === null || _a === void 0 ? void 0 : _a.writable))
-            return;
-        if (this._encoder)
-            this._encoder.write({ command: command, payload: payload });
+    Peer.prototype.send = function (command, eventName, payload, timeout) {
+        var _this = this;
+        if (timeout === void 0) { timeout = this._getTimeout(); }
+        return new Promise(function (resolve, reject) {
+            var _a;
+            if (!((_a = _this.socket) === null || _a === void 0 ? void 0 : _a.writable))
+                reject(new Error("socket is not writable"));
+            if (!_this._encoder)
+                reject(new Error("Encoder is undefined"));
+            if (_this._encoder) {
+                var nodejsTimeout_1 = setTimeout(function () {
+                    debug(command + " timed out: " + timeout + " ms");
+                    if (eventName)
+                        _this.removeListener(eventName, resolve);
+                    var error = new Error("Request timed out");
+                    reject(error);
+                }, timeout);
+                if (eventName) {
+                    _this.once(eventName, function (t) {
+                        if (!nodejsTimeout_1)
+                            clearTimeout(nodejsTimeout_1);
+                        resolve(t);
+                    });
+                }
+                _this._encoder.write({ command: command, payload: payload });
+            }
+        });
     };
     Peer.prototype.connect = function (socket) {
         var _this = this;
@@ -180,7 +200,7 @@ var Peer = /** @class */ (function (_super) {
                 cb(null, elapsed, _this.latency);
         };
         this.on("pong", onPong);
-        this.send("ping", { nonce: nonce });
+        this.send("ping", undefined, { nonce: nonce });
     };
     Peer.prototype._error = function (err) {
         this.emit("error", err);
@@ -204,7 +224,7 @@ var Peer = /** @class */ (function (_super) {
             _this.verack = true;
             _this._maybeReady();
         });
-        this.on("ping", function (message) { return _this.send("pong", message); });
+        this.on("ping", function (message) { return _this.send("pong", undefined, message); });
         this.on("block", function (block) {
             _this.emit("block:" + utils_1.getBlockHash(block.header).toString("base64"), block);
         });
@@ -246,7 +266,7 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype._sendVersion = function () {
         var _a, _b, _c;
-        this.send("version", {
+        this.send("version", undefined, {
             version: this.protocolVersion,
             services: SERVICES_SPV,
             timestamp: Math.round(Date.now() / 1000),
@@ -296,7 +316,7 @@ var Peer = /** @class */ (function (_super) {
             type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
             hash: hash
         }); });
-        this.send("getdata", inventory);
+        this.send("getdata", undefined, inventory);
         if (!opts.timeout)
             return;
         timeout = setTimeout(function () {
@@ -365,7 +385,7 @@ var Peer = /** @class */ (function (_super) {
                 type: INV.MSG_TX,
                 hash: hash
             }); });
-            this.send("getdata", inventory);
+            this.send("getdata", undefined, inventory);
             if (!opts.timeout)
                 return;
             timeout_1 = setTimeout(function () {
@@ -377,36 +397,14 @@ var Peer = /** @class */ (function (_super) {
             }, opts.timeout);
         }
     };
-    Peer.prototype.getHeaders = function (locator, opts
-    // cb: (_err: Error | null, headers?: Array<Header>) => void
-    ) {
-        var _this = this;
+    Peer.prototype.getHeaders = function (locator, opts) {
         if (opts === void 0) { opts = {}; }
-        opts.stop = opts.stop || nullHash;
         var getHeadersParams = {
             version: this.protocolVersion,
             locator: [locator],
-            hashStop: opts.stop
+            hashStop: opts.stop || nullHash
         };
-        return new Promise(function (resolve, reject) {
-            debug("queued \"getHeaders\" request started.");
-            var nodejsTimeout;
-            var timeout = opts.timeout != null ? opts.timeout : _this._getTimeout();
-            var onHeaders = function (headers) {
-                if (nodejsTimeout)
-                    clearTimeout(nodejsTimeout);
-                debug("queued \"getHeaders\" request successly finished.");
-                resolve(headers);
-            };
-            _this.once("headers", onHeaders);
-            _this.send("getheaders", getHeadersParams);
-            nodejsTimeout = setTimeout(function () {
-                debug("getHeaders timed out: " + opts.timeout + " ms");
-                _this.removeListener("headers", onHeaders);
-                var error = new Error("Request timed out");
-                reject(error);
-            }, timeout);
-        });
+        return this.send("getheaders", "headers", getHeadersParams, opts.timeout);
     };
     return Peer;
 }(events_1.EventEmitter));

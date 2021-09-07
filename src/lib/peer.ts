@@ -143,10 +143,35 @@ export class Peer extends EventEmitter {
     if (opts.socket) this.connect(opts.socket);
   }
 
-  send(command: string, payload?: PayloadReference) {
-    // TODO?: maybe this should error if we try to write after close?
-    if (!this.socket?.writable) return;
-    if (this._encoder) this._encoder.write({ command, payload });
+  send<T>(
+    command: string,
+    eventName?: string,
+    payload?: PayloadReference,
+    timeout: number = this._getTimeout()
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (!this.socket?.writable) reject(new Error("socket is not writable"));
+
+      if (!this._encoder) reject(new Error("Encoder is undefined"));
+
+      if (this._encoder) {
+        let nodejsTimeout: NodeJS.Timeout = setTimeout(() => {
+          debug(`${command} timed out: ${timeout} ms`);
+          if (eventName) this.removeListener(eventName, resolve);
+          const error = new Error("Request timed out");
+          reject(error);
+        }, timeout);
+
+        if (eventName) {
+          this.once(eventName, (t: T) => {
+            if (!nodejsTimeout) clearTimeout(nodejsTimeout);
+            resolve(t);
+          });
+        }
+
+        this._encoder.write({ command, payload });
+      }
+    });
   }
 
   connect(socket: Socket) {
@@ -221,7 +246,7 @@ export class Peer extends EventEmitter {
       if (cb) cb(null, elapsed, this.latency);
     };
     this.on("pong", onPong);
-    this.send("ping", { nonce });
+    this.send("ping", undefined, { nonce });
   }
 
   _error(err: Error) {
@@ -246,7 +271,7 @@ export class Peer extends EventEmitter {
       this._maybeReady();
     });
 
-    this.on("ping", (message) => this.send("pong", message));
+    this.on("ping", (message) => this.send("pong", undefined, message));
 
     this.on("block", (block) => {
       this.emit(
@@ -305,7 +330,7 @@ export class Peer extends EventEmitter {
   }
 
   _sendVersion() {
-    this.send("version", {
+    this.send("version", undefined, {
       version: this.protocolVersion,
       services: SERVICES_SPV,
       timestamp: Math.round(Date.now() / 1000),
@@ -365,7 +390,7 @@ export class Peer extends EventEmitter {
         hash,
       })
     );
-    this.send("getdata", inventory);
+    this.send("getdata", undefined, inventory);
 
     if (!opts.timeout) return;
     timeout = setTimeout(() => {
@@ -442,7 +467,7 @@ export class Peer extends EventEmitter {
         type: INV.MSG_TX,
         hash,
       }));
-      this.send("getdata", inventory);
+      this.send("getdata", undefined, inventory);
 
       if (!opts.timeout) return;
       timeout = setTimeout(() => {
@@ -457,38 +482,18 @@ export class Peer extends EventEmitter {
     }
   }
 
-  getHeaders(
-    locator: Buffer,
-    opts: Opts = {}
-    // cb: (_err: Error | null, headers?: Array<Header>) => void
-  ): Promise<Array<Header>> {
-    opts.stop = opts.stop || nullHash;
-
+  getHeaders(locator: Buffer, opts: Opts = {}): Promise<Array<Header>> {
     const getHeadersParams: GetHeadersParam = {
       version: this.protocolVersion,
       locator: [locator],
-      hashStop: opts.stop,
+      hashStop: opts.stop || nullHash,
     };
 
-    return new Promise((resolve, reject) => {
-      debug(`queued "getHeaders" request started.`);
-
-      let nodejsTimeout: NodeJS.Timeout;
-      const timeout = opts.timeout != null ? opts.timeout : this._getTimeout();
-      const onHeaders = (headers: Array<Header>) => {
-        if (nodejsTimeout) clearTimeout(nodejsTimeout);
-        debug(`queued "getHeaders" request successly finished.`);
-        resolve(headers);
-      };
-      this.once("headers", onHeaders);
-      this.send("getheaders", getHeadersParams);
-
-      nodejsTimeout = setTimeout(() => {
-        debug(`getHeaders timed out: ${opts.timeout} ms`);
-        this.removeListener("headers", onHeaders);
-        const error = new Error("Request timed out");
-        reject(error);
-      }, timeout);
-    });
+    return this.send<Array<Header>>(
+      "getheaders",
+      "headers",
+      getHeadersParams,
+      opts.timeout
+    );
   }
 }
