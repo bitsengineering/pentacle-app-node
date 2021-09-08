@@ -142,30 +142,45 @@ export class Peer extends EventEmitter {
 
   send<T>(
     command: string,
-    eventName?: string,
+    eventNames?: Array<string>,
     payload?: PayloadReference,
     timeout: number = this._getTimeout()
-  ): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
+  ): Promise<Array<T>> {
+    return new Promise<Array<T>>((resolve, reject) => {
       if (!this.socket?.writable)
         reject(new Error(`socket is not writable ${command}`));
 
       if (!this._encoder) reject(new Error("Encoder is undefined"));
 
       if (this._encoder) {
-        if (eventName) {
+        if (eventNames && eventNames.length > 0) {
           let nodejsTimeout: NodeJS.Timeout = setTimeout(() => {
             debug(`${command} timed out: ${timeout} ms`);
-            if (eventName) this.removeListener(eventName, resolve);
+            if (eventNames && eventNames.length > 0) {
+              eventNames.forEach((eventName: string) => {
+                this.removeListener(eventName, resolve);
+              });
+            }
             const error = new Error("Request timed out");
             reject(error);
           }, timeout);
 
-          this.once(eventName, (t: T) => {
-            console.log("this.once nodejsTimeout", command, eventName, timeout);
+          this.registerOnceMulti<T>(eventNames).then((ts: Array<T>) => {
+            console.log(
+              "this.once nodejsTimeout",
+              command,
+              eventNames,
+              timeout
+            );
             clearTimeout(nodejsTimeout);
-            resolve(t);
+            resolve(ts);
           });
+
+          // this.once(eventName, (t: T) => {
+          //   console.log("this.once nodejsTimeout", command, eventName, timeout);
+          //   clearTimeout(nodejsTimeout);
+          //   resolve(t);
+          // });
         }
 
         this._encoder.write({ command, payload });
@@ -173,12 +188,29 @@ export class Peer extends EventEmitter {
     });
   }
 
-  registerOnce<T>(eventName: string): Promise<T> {
+  registerOnceMono<T>(eventName: string): Promise<T> {
     return new Promise((resolve) => {
       this.once(eventName, (t: T) => {
         console.log("register once", eventName);
         resolve(t);
       });
+    });
+  }
+
+  registerOnceMulti<T>(eventNames: Array<string>): Promise<Array<T>> {
+    const promises: Array<Promise<T>> = [];
+    eventNames.forEach((eventName: string) => {
+      const promise = new Promise<T>((resolve) => {
+        return this.registerOnceMono<T>(eventName).then((t: T) => {
+          console.log("register once", eventName);
+          resolve(t);
+        });
+      });
+      promises.push(promise);
+    });
+    return Promise.all<T>(promises).then((ts: Array<T>) => {
+      console.log("Promise all resolved", ts.length);
+      return ts;
     });
   }
 
@@ -258,9 +290,9 @@ export class Peer extends EventEmitter {
       this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
       return { pong, elapsed, latency: this.latency };
     };
-    return this.send<PingPong>("ping", "pong", {
+    return this.send<PingPong>("ping", ["pong"], {
       nonce,
-    }).then((pong: PingPong) => onPong(pong));
+    }).then((pongs: Array<PingPong>) => onPong(pongs[0]));
   }
 
   _error(err: Error) {
@@ -340,7 +372,7 @@ export class Peer extends EventEmitter {
   }
 
   readyOnce() {
-    return this.registerOnce("ready");
+    return this.registerOnceMulti(["ready"]);
   }
 
   _sendVersion() {
@@ -392,6 +424,8 @@ export class Peer extends EventEmitter {
 
       events.once(event, (block: Block) => {
         output[i] = block;
+        console.log(remaining, block, new Date());
+
         remaining--;
         if (remaining > 0) return;
         if (timeout != null) clearTimeout(timeout);
@@ -497,18 +531,22 @@ export class Peer extends EventEmitter {
     }
   }
 
-  getHeaders(locator: Buffer, opts: Opts = {}): Promise<Array<Header>> {
+  getHeaders(
+    locator: Array<Buffer>,
+    opts: Opts = {}
+  ): Promise<Array<Array<Header>>> {
     const getHeadersParams: GetHeadersParam = {
       version: this.protocolVersion,
-      locator: [locator],
+      locator,
       hashStop: opts.stop || nullHash,
     };
 
     return this.send<Array<Header>>(
       "getheaders",
-      "headers",
+      ["headers"],
       getHeadersParams,
       opts.timeout
     );
+    // then((headerses: Array<Array<Header>>) => headerses[0]);
   }
 }

@@ -105,7 +105,7 @@ var Peer = /** @class */ (function (_super) {
             _this.connect(opts.socket);
         return _this;
     }
-    Peer.prototype.send = function (command, eventName, payload, timeout) {
+    Peer.prototype.send = function (command, eventNames, payload, timeout) {
         var _this = this;
         if (timeout === void 0) { timeout = this._getTimeout(); }
         return new Promise(function (resolve, reject) {
@@ -115,31 +115,56 @@ var Peer = /** @class */ (function (_super) {
             if (!_this._encoder)
                 reject(new Error("Encoder is undefined"));
             if (_this._encoder) {
-                if (eventName) {
+                if (eventNames && eventNames.length > 0) {
                     var nodejsTimeout_1 = setTimeout(function () {
                         debug(command + " timed out: " + timeout + " ms");
-                        if (eventName)
-                            _this.removeListener(eventName, resolve);
+                        if (eventNames && eventNames.length > 0) {
+                            eventNames.forEach(function (eventName) {
+                                _this.removeListener(eventName, resolve);
+                            });
+                        }
                         var error = new Error("Request timed out");
                         reject(error);
                     }, timeout);
-                    _this.once(eventName, function (t) {
-                        console.log("this.once nodejsTimeout", command, eventName, timeout);
+                    _this.registerOnceMulti(eventNames).then(function (ts) {
+                        console.log("this.once nodejsTimeout", command, eventNames, timeout);
                         clearTimeout(nodejsTimeout_1);
-                        resolve(t);
+                        resolve(ts);
                     });
+                    // this.once(eventName, (t: T) => {
+                    //   console.log("this.once nodejsTimeout", command, eventName, timeout);
+                    //   clearTimeout(nodejsTimeout);
+                    //   resolve(t);
+                    // });
                 }
                 _this._encoder.write({ command: command, payload: payload });
             }
         });
     };
-    Peer.prototype.registerOnce = function (eventName) {
+    Peer.prototype.registerOnceMono = function (eventName) {
         var _this = this;
         return new Promise(function (resolve) {
             _this.once(eventName, function (t) {
                 console.log("register once", eventName);
                 resolve(t);
             });
+        });
+    };
+    Peer.prototype.registerOnceMulti = function (eventNames) {
+        var _this = this;
+        var promises = [];
+        eventNames.forEach(function (eventName) {
+            var promise = new Promise(function (resolve) {
+                return _this.registerOnceMono(eventName).then(function (t) {
+                    console.log("register once", eventName);
+                    resolve(t);
+                });
+            });
+            promises.push(promise);
+        });
+        return Promise.all(promises).then(function (ts) {
+            console.log("Promise all resolved", ts.length);
+            return ts;
         });
     };
     Peer.prototype.connect = function (socket) {
@@ -215,9 +240,9 @@ var Peer = /** @class */ (function (_super) {
             _this.latency = _this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
             return { pong: pong, elapsed: elapsed, latency: _this.latency };
         };
-        return this.send("ping", "pong", {
+        return this.send("ping", ["pong"], {
             nonce: nonce
-        }).then(function (pong) { return onPong(pong); });
+        }).then(function (pongs) { return onPong(pongs[0]); });
     };
     Peer.prototype._error = function (err) {
         this.emit("error", err);
@@ -277,7 +302,7 @@ var Peer = /** @class */ (function (_super) {
         this.emit("ready");
     };
     Peer.prototype.readyOnce = function () {
-        return this.registerOnce("ready");
+        return this.registerOnceMulti(["ready"]);
     };
     Peer.prototype._sendVersion = function () {
         var _a, _b, _c;
@@ -320,6 +345,7 @@ var Peer = /** @class */ (function (_super) {
             var event = (opts.filtered ? "merkle" : "") + "block:" + hash.toString("base64");
             events.once(event, function (block) {
                 output[i] = block;
+                console.log(remaining, block, new Date());
                 remaining--;
                 if (remaining > 0)
                     return;
@@ -417,10 +443,11 @@ var Peer = /** @class */ (function (_super) {
         if (opts === void 0) { opts = {}; }
         var getHeadersParams = {
             version: this.protocolVersion,
-            locator: [locator],
+            locator: locator,
             hashStop: opts.stop || nullHash
         };
-        return this.send("getheaders", "headers", getHeadersParams, opts.timeout);
+        return this.send("getheaders", ["headers"], getHeadersParams, opts.timeout);
+        // then((headerses: Array<Array<Header>>) => headerses[0]);
     };
     return Peer;
 }(events_1.EventEmitter));
