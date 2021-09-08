@@ -1,4 +1,4 @@
-interface Version {
+interface VersionParams {
   version: Number;
   services: Buffer; // 8 bytes
   timestamp: Number;
@@ -13,9 +13,9 @@ interface Version {
     port: Number;
   };
   nonce: Buffer; // 8 bytes
-  userAgent: String;
+  userAgent?: String;
   startHeight: Number;
   relay: Boolean;
 }
 
-export default Version;
+export default VersionParams;

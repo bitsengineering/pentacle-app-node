@@ -6,7 +6,7 @@ import Inventory from "./Inventory";
 import PayloadReference from "./PayloadReference";
 import PingPong from "./PingPong";
 import ServiceBit from "./ServiceBit";
-import Version from "./Version";
+import VersionParams from "./VersionParams";
 import Message from "./Message";
 import Block from "./Block";
 import Transaction from "./Transaction";
@@ -23,7 +23,7 @@ export {
   PayloadReference,
   PingPong,
   ServiceBit,
-  Version,
+  VersionParams,
   Message,
   Block,
   Transaction,
