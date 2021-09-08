@@ -22,11 +22,12 @@ var through2 = require("through2");
 var utils_1 = require("./utils");
 var events_1 = require("events");
 var debug_1 = require("debug");
+var inventory_1 = require("./params/inventory");
 var wrapEvents = require("event-cleanup");
 var debug = debug_1["default"]("bitcoin-net:peer");
 var rx = debug_1["default"]("bitcoin-net:messages:rx");
 var tx = debug_1["default"]("bitcoin-net:messages:tx");
-var INV = bitcoin_protocol_1.constants.inventory;
+var INV = inventory_1.inventory;
 var SERVICES_SPV = Buffer.from("0800000000000000", "hex");
 var SERVICES_FULL = Buffer.from("0100000000000000", "hex");
 var BLOOMSERVICE_VERSION = 70011;
@@ -123,13 +124,22 @@ var Peer = /** @class */ (function (_super) {
                         reject(error);
                     }, timeout);
                     _this.once(eventName, function (t) {
-                        console.log("nodejsTimeout", nodejsTimeout_1);
+                        console.log("this.once nodejsTimeout", command, eventName, timeout);
                         clearTimeout(nodejsTimeout_1);
                         resolve(t);
                     });
                 }
                 _this._encoder.write({ command: command, payload: payload });
             }
+        });
+    };
+    Peer.prototype.registerOnce = function (eventName) {
+        var _this = this;
+        return new Promise(function (resolve) {
+            _this.once(eventName, function (t) {
+                console.log("register once", eventName);
+                resolve(t);
+            });
         });
     };
     Peer.prototype.connect = function (socket) {
@@ -167,9 +177,17 @@ var Peer = /** @class */ (function (_super) {
         }
         // set up ping interval and initial pings
         this.once("ready", function () {
-            _this._pingInterval = setInterval(_this.ping.bind(_this), _this.pingInterval);
+            _this._pingInterval = setInterval(function () {
+                _this.ping()["catch"](function (error) {
+                    console.warn(error.message);
+                });
+            }, _this.pingInterval);
             for (var i = 0; i < INITIAL_PING_N; i++) {
-                setTimeout(_this.ping.bind(_this), INITIAL_PING_INTERVAL * i);
+                setTimeout(function () {
+                    _this.ping()["catch"](function (error) {
+                        console.warn(error.message);
+                    });
+                }, INITIAL_PING_INTERVAL * i);
             }
         });
         this._registerListeners();
@@ -186,21 +204,20 @@ var Peer = /** @class */ (function (_super) {
         (_a = this.socket) === null || _a === void 0 ? void 0 : _a.end();
         this.emit("disconnect", err);
     };
-    Peer.prototype.ping = function (cb) {
+    Peer.prototype.ping = function () {
         var _this = this;
         var start = Date.now();
         var nonce = crypto_1.pseudoRandomBytes(8);
         var onPong = function (pong) {
             if (pong.nonce.compare(nonce) !== 0)
-                return;
-            _this.removeListener("pong", onPong);
+                throw new Error("pong.nonce is different");
             var elapsed = Date.now() - start;
             _this.latency = _this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
-            if (cb)
-                cb(null, elapsed, _this.latency);
+            return { pong: pong, elapsed: elapsed, latency: _this.latency };
         };
-        this.on("pong", onPong);
-        this.send("ping", undefined, { nonce: nonce });
+        return this.send("ping", "pong", {
+            nonce: nonce
+        }).then(function (pong) { return onPong(pong); });
     };
     Peer.prototype._error = function (err) {
         this.emit("error", err);
@@ -208,13 +225,13 @@ var Peer = /** @class */ (function (_super) {
     };
     Peer.prototype._registerListeners = function () {
         var _this = this;
-        if (this._decoder)
-            this._decoder.on("error", this._error.bind(this));
-        if (this._decoder)
+        if (this._decoder) {
             this._decoder.on("data", function (message) {
                 _this.emit("message", message);
                 _this.emit(message.command, message.payload);
             });
+            this._decoder.on("error", this._error.bind(this));
+        }
         if (this._encoder)
             this._encoder.on("error", this._error.bind(this));
         this.on("version", this._onVersion);
@@ -259,14 +276,12 @@ var Peer = /** @class */ (function (_super) {
         this.ready = true;
         this.emit("ready");
     };
-    Peer.prototype._onceReady = function (cb) {
-        if (this.ready)
-            return cb();
-        this.once("ready", cb);
+    Peer.prototype.readyOnce = function () {
+        return this.registerOnce("ready");
     };
     Peer.prototype._sendVersion = function () {
         var _a, _b, _c;
-        this.send("version", undefined, {
+        var versionParams = {
             version: this.protocolVersion,
             services: SERVICES_SPV,
             timestamp: Math.round(Date.now() / 1000),
@@ -284,7 +299,8 @@ var Peer = /** @class */ (function (_super) {
             userAgent: this.userAgent,
             startHeight: this.getTip ? this.getTip().height : 0,
             relay: this.relay
-        });
+        };
+        this.send("version", undefined, versionParams);
     };
     Peer.prototype._getTimeout = function () {
         return MIN_TIMEOUT + this.latency * 10;
@@ -381,11 +397,11 @@ var Peer = /** @class */ (function (_super) {
                     cb(null, output);
                 });
             });
-            var inventory = txids.map(function (hash) { return ({
+            var inventory_2 = txids.map(function (hash) { return ({
                 type: INV.MSG_TX,
                 hash: hash
             }); });
-            this.send("getdata", undefined, inventory);
+            this.send("getdata", undefined, inventory_2);
             if (!opts.timeout)
                 return;
             timeout_1 = setTimeout(function () {

@@ -1,9 +1,5 @@
 import { pseudoRandomBytes } from "crypto";
-import {
-  constants,
-  createDecodeStream,
-  createEncodeStream,
-} from "bitcoin-protocol";
+import { createDecodeStream, createEncodeStream } from "bitcoin-protocol";
 import * as through2 from "through2";
 import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
@@ -19,9 +15,10 @@ import {
   PingPong,
   ServiceBit,
   Transaction,
-  Version,
   GetHeadersParam,
+  VersionParams,
 } from "../model";
+import { inventory } from "./params/inventory";
 import { Socket } from "net";
 
 const wrapEvents = require("event-cleanup");
@@ -29,7 +26,7 @@ const debug = Debug("bitcoin-net:peer");
 const rx = Debug("bitcoin-net:messages:rx");
 const tx = Debug("bitcoin-net:messages:tx");
 
-const INV = constants.inventory;
+const INV = inventory;
 const SERVICES_SPV: Buffer = Buffer.from("0800000000000000", "hex");
 const SERVICES_FULL: Buffer = Buffer.from("0100000000000000", "hex");
 const BLOOMSERVICE_VERSION: number = 70011;
@@ -93,7 +90,7 @@ export class Peer extends EventEmitter {
   getTip?: () => { height: number };
   relay: boolean;
   pingInterval: number;
-  version: number | null | Version;
+  version: number | null | VersionParams;
   services: { [key: string]: boolean } | null;
   socket: Socket | null;
   _handshakeTimeout: NodeJS.Timeout | null;
@@ -165,8 +162,7 @@ export class Peer extends EventEmitter {
           }, timeout);
 
           this.once(eventName, (t: T) => {
-            console.log("nodejsTimeout", nodejsTimeout);
-
+            console.log("this.once nodejsTimeout", command, eventName, timeout);
             clearTimeout(nodejsTimeout);
             resolve(t);
           });
@@ -174,6 +170,15 @@ export class Peer extends EventEmitter {
 
         this._encoder.write({ command, payload });
       }
+    });
+  }
+
+  registerOnce<T>(eventName: string): Promise<T> {
+    return new Promise((resolve) => {
+      this.once(eventName, (t: T) => {
+        console.log("register once", eventName);
+        resolve(t);
+      });
     });
   }
 
@@ -215,13 +220,18 @@ export class Peer extends EventEmitter {
 
     // set up ping interval and initial pings
     this.once("ready", () => {
-      this._pingInterval = (setInterval(
-        this.ping.bind(this),
-        this.pingInterval
-      ) as unknown) as NodeJS.Timeout;
+      this._pingInterval = (setInterval(() => {
+        this.ping().catch((error: Error) => {
+          console.warn(error.message);
+        });
+      }, this.pingInterval) as unknown) as NodeJS.Timeout;
 
       for (let i = 0; i < INITIAL_PING_N; i++) {
-        setTimeout(this.ping.bind(this), INITIAL_PING_INTERVAL * i);
+        setTimeout(() => {
+          this.ping().catch((error: Error) => {
+            console.warn(error.message);
+          });
+        }, INITIAL_PING_INTERVAL * i);
       }
     });
 
@@ -238,18 +248,19 @@ export class Peer extends EventEmitter {
     this.emit("disconnect", err);
   }
 
-  ping(cb: (err: Error | null, elapsed: number, latency: number) => void) {
+  ping(): Promise<{ pong: PingPong; elapsed: number; latency: number }> {
     const start = Date.now();
     const nonce = pseudoRandomBytes(8);
     const onPong = (pong: PingPong) => {
-      if (pong.nonce.compare(nonce) !== 0) return;
-      this.removeListener("pong", onPong);
+      if (pong.nonce.compare(nonce) !== 0)
+        throw new Error("pong.nonce is different");
       const elapsed = Date.now() - start;
       this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
-      if (cb) cb(null, elapsed, this.latency);
+      return { pong, elapsed, latency: this.latency };
     };
-    this.on("pong", onPong);
-    this.send("ping", undefined, { nonce });
+    return this.send<PingPong>("ping", "pong", {
+      nonce,
+    }).then((pong: PingPong) => onPong(pong));
   }
 
   _error(err: Error) {
@@ -258,12 +269,13 @@ export class Peer extends EventEmitter {
   }
 
   _registerListeners() {
-    if (this._decoder) this._decoder.on("error", this._error.bind(this));
-    if (this._decoder)
+    if (this._decoder) {
       this._decoder.on("data", (message: Message) => {
         this.emit("message", message);
         this.emit(message.command, message.payload);
       });
+      this._decoder.on("error", this._error.bind(this));
+    }
 
     if (this._encoder) this._encoder.on("error", this._error.bind(this));
 
@@ -293,7 +305,7 @@ export class Peer extends EventEmitter {
     });
   }
 
-  _onVersion(message: Version) {
+  _onVersion(message: VersionParams) {
     this.services = getServices(message.services);
 
     if (!this.services.NODE_NETWORK) {
@@ -327,13 +339,12 @@ export class Peer extends EventEmitter {
     this.emit("ready");
   }
 
-  _onceReady(cb: (...args: any[]) => void) {
-    if (this.ready) return cb();
-    this.once("ready", cb);
+  readyOnce() {
+    return this.registerOnce("ready");
   }
 
   _sendVersion() {
-    this.send("version", undefined, {
+    const versionParams: VersionParams = {
       version: this.protocolVersion,
       services: SERVICES_SPV,
       timestamp: Math.round(Date.now() / 1000),
@@ -351,7 +362,8 @@ export class Peer extends EventEmitter {
       userAgent: this.userAgent,
       startHeight: this.getTip ? this.getTip().height : 0,
       relay: this.relay,
-    });
+    };
+    this.send("version", undefined, versionParams);
   }
 
   _getTimeout() {
