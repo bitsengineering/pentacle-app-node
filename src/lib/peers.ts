@@ -6,13 +6,7 @@ import { createServer } from "http";
 import Exchange from "peer-exchange";
 import getBrowserRTC from "get-browser-rtc";
 import { Peer } from "./peer";
-import {
-  assertParams,
-  getBlockHash,
-  getTxHash,
-  getRandom,
-  parseAddress,
-} from "./utils";
+import { assertParams, getBlockHash, getTxHash, getRandom, parseAddress } from "./utils";
 import debug from "debug";
 import { Socket } from "net";
 import { Block, PeerParams, PeersParams, Transaction } from "../model";
@@ -57,10 +51,8 @@ export class Peers extends EventEmitter {
     this.peers = [];
     this._hardLimit = opts.hardLimit || false;
     this.websocketPort = null;
-    this._connectWeb =
-      opts.connectWeb != null ? opts.connectWeb : process.browser;
-    this.connectTimeout =
-      opts.connectTimeout != null ? opts.connectTimeout : 8 * 1000;
+    this._connectWeb = opts.connectWeb != null ? opts.connectWeb : process.browser;
+    this.connectTimeout = opts.connectTimeout != null ? opts.connectTimeout : 8 * 1000;
     this.peerOpts = opts.peerOpts != null ? opts.peerOpts : {};
     this.acceptIncoming = opts.acceptIncoming;
     const acceptIncoming = this.acceptIncoming;
@@ -71,15 +63,10 @@ export class Peers extends EventEmitter {
 
     if (this._connectWeb) {
       let wrtc = opts.wrtc || getBrowserRTC();
-      let envSeeds = process.env.WEB_SEED
-        ? process.env.WEB_SEED.split(",").map((s) => s.trim())
-        : [];
+      let envSeeds = process.env.WEB_SEED ? process.env.WEB_SEED.split(",").map((s) => s.trim()) : [];
       this._webSeeds = this._params.webSeeds?.concat(envSeeds);
       try {
-        this._exchange = Exchange(
-          params.magic?.toString(16),
-          assign({ wrtc, acceptIncoming }, opts.exchangeOpts)
-        );
+        this._exchange = Exchange(params.magic?.toString(16), assign({ wrtc, acceptIncoming }, opts.exchangeOpts));
         console.log("_exchangeee", this._exchange);
       } catch (err: any) {
         // return this._error(err);
@@ -97,16 +84,10 @@ export class Peers extends EventEmitter {
     }
 
     this.on("block", (block: Block) => {
-      this.emit(
-        `block:${getBlockHash(block.header).toString("base64")}`,
-        block
-      );
+      this.emit(`block:${getBlockHash(block.header).toString("base64")}`, block);
     });
     this.on("merkleblock", (block: Block) => {
-      this.emit(
-        `merkleblock:${getBlockHash(block.header).toString("base64")}`,
-        block
-      );
+      this.emit(`merkleblock:${getBlockHash(block.header).toString("base64")}`, block);
     });
     this.on("tx", (tx: Transaction) => {
       this.emit(`tx:${getTxHash(tx).toString("base64")}`, tx);
@@ -233,13 +214,7 @@ export class Peers extends EventEmitter {
       socket.on("error", (err: any) => this._error(err));
       this._exchange.connect(socket, (err: { stack: any }, peer: any) => {
         if (err) {
-          debug(
-            `error connecting to web seed (pxp): ${JSON.stringify(
-              seed,
-              null,
-              "  "
-            )} ${err.stack}`
-          );
+          debug(`error connecting to web seed (pxp): ${JSON.stringify(seed, null, "  ")} ${err.stack}`);
           return;
         }
         debug(`connected to web seed: ${JSON.stringify(seed, null, "  ")}`);
@@ -260,9 +235,7 @@ export class Peers extends EventEmitter {
     // TODO: smarter peer logic (ensure we don't have too many peers from the
     // same seed, or the same IP block)
     const n = this._numPeers - this.peers.length;
-    debug(
-      `_fillPeers: n = ${n}, numPeers = ${this._numPeers}, peers.length = ${this.peers.length}`
-    );
+    debug(`_fillPeers: n = ${n}, numPeers = ${this._numPeers}, peers.length = ${this.peers.length}`);
     for (let i = 0; i < n; i++) this._connectPeer();
   }
 
@@ -347,9 +320,7 @@ export class Peers extends EventEmitter {
       const index = this.peers.indexOf(peer);
       this.peers.splice(index, 1);
       peer.removeListener("message", onMessage);
-      debug(
-        `peer disconnect, peer.length = ${this.peers.length}, reason=${err}\n${err.stack}`
-      );
+      debug(`peer disconnect, peer.length = ${this.peers.length}, reason=${err}\n${err.stack}`);
       if (this.connecting) this._fillPeers();
       this.emit("disconnect", peer, err);
     });
@@ -380,10 +351,7 @@ export class Peers extends EventEmitter {
 
   // calls a method on a random peer,
   // and retries on another peer if it times out
-  _request(
-    method?: any,
-    ...args: (((err: any, res: any) => void) | undefined)[]
-  ) {
+  _request(method?: any, ...args: (((err: any, res: any) => void) | undefined)[]) {
     let cb: any = args.pop();
     while (!cb) cb = args.pop();
     const peer = this.randomPeer();

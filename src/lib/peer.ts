@@ -5,19 +5,7 @@ import { assertParams, getBlockHash, getTxHash } from "./utils";
 import { EventEmitter } from "events";
 import Debug from "debug";
 import * as internal from "stream";
-import {
-  Block,
-  Header,
-  Message,
-  Opts,
-  PeerParams,
-  PayloadReference,
-  PingPong,
-  ServiceBit,
-  Transaction,
-  GetHeadersParam,
-  VersionParams,
-} from "../model";
+import { Block, Header, Message, Opts, PeerParams, PayloadReference, PingPong, ServiceBit, Transaction, GetHeadersParam, VersionParams } from "../model";
 import { inventory } from "./params/inventory";
 import { Socket } from "net";
 
@@ -35,10 +23,7 @@ const LATENCY_EXP: number = 0.5; // coefficient used for latency exponential ave
 const INITIAL_PING_N: number = 4; // send this many pings when we first connect
 const INITIAL_PING_INTERVAL: number = 250; // wait this many ms between initial pings
 const MIN_TIMEOUT: number = 4000; // lower bound for timeouts (in case latency is low)
-const nullHash = Buffer.from(
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "hex"
-);
+const nullHash = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
 
 const serviceBits: Array<ServiceBit> = [
   { key: "NODE_NETWORK", value: 0 },
@@ -69,16 +54,10 @@ const getServices = (buf: Buffer) => {
 };
 
 const debugStream = (f: (message: string) => void) =>
-  through2.obj(
-    (
-      message: string,
-      enc: any,
-      cb: (err: Error | null, message: string) => void
-    ) => {
-      f(message);
-      cb(null, message);
-    }
-  );
+  through2.obj((message: string, enc: any, cb: (err: Error | null, message: string) => void) => {
+    f(message);
+    cb(null, message);
+  });
 
 export class Peer extends EventEmitter {
   params: PeerParams;
@@ -113,8 +92,7 @@ export class Peer extends EventEmitter {
     this.requireBloom = opts.requireBloom && true;
     this.userAgent = opts.userAgent;
     if (!opts.userAgent) {
-      if ((process as NodeJS.Process).browser)
-        this.userAgent = `/${navigator.userAgent}/`;
+      if ((process as NodeJS.Process).browser) this.userAgent = `/${navigator.userAgent}/`;
       else this.userAgent = `/node.js:${process.versions.node}/`;
       this.userAgent += `pentacle-app-node":1.0.0/`;
     }
@@ -140,15 +118,9 @@ export class Peer extends EventEmitter {
     if (opts.socket) this.connect(opts.socket);
   }
 
-  send<T>(
-    command: string,
-    eventNames?: Array<string>,
-    payload?: PayloadReference,
-    timeout: number = this._getTimeout()
-  ): Promise<Array<T>> {
+  send<T>(command: string, eventNames?: Array<string>, payload?: PayloadReference, timeout: number = this._getTimeout()): Promise<Array<T>> {
     return new Promise<Array<T>>((resolve, reject) => {
-      if (!this.socket?.writable)
-        reject(new Error(`socket is not writable ${command}`));
+      if (!this.socket?.writable) reject(new Error(`socket is not writable ${command}`));
 
       if (!this._encoder) reject(new Error("Encoder is undefined"));
 
@@ -166,12 +138,7 @@ export class Peer extends EventEmitter {
           }, timeout);
 
           this.registerOnceMulti<T>(eventNames).then((ts: Array<T>) => {
-            console.log(
-              "this.once nodejsTimeout",
-              command,
-              eventNames,
-              timeout
-            );
+            console.log("this.once nodejsTimeout", command, eventNames, timeout);
             clearTimeout(nodejsTimeout);
             resolve(ts);
           });
@@ -252,11 +219,11 @@ export class Peer extends EventEmitter {
 
     // set up ping interval and initial pings
     this.once("ready", () => {
-      this._pingInterval = (setInterval(() => {
+      this._pingInterval = setInterval(() => {
         this.ping().catch((error: Error) => {
           console.warn(error.message);
         });
-      }, this.pingInterval) as unknown) as NodeJS.Timeout;
+      }, this.pingInterval) as unknown as NodeJS.Timeout;
 
       for (let i = 0; i < INITIAL_PING_N; i++) {
         setTimeout(() => {
@@ -284,8 +251,7 @@ export class Peer extends EventEmitter {
     const start = Date.now();
     const nonce = pseudoRandomBytes(8);
     const onPong = (pong: PingPong) => {
-      if (pong.nonce.compare(nonce) !== 0)
-        throw new Error("pong.nonce is different");
+      if (pong.nonce.compare(nonce) !== 0) throw new Error("pong.nonce is different");
       const elapsed = Date.now() - start;
       this.latency = this.latency * LATENCY_EXP + elapsed * (1 - LATENCY_EXP);
       return { pong, elapsed, latency: this.latency };
@@ -321,16 +287,10 @@ export class Peer extends EventEmitter {
     this.on("ping", (message) => this.send("pong", undefined, message));
 
     this.on("block", (block) => {
-      this.emit(
-        `block:${getBlockHash(block.header).toString("base64")}`,
-        block
-      );
+      this.emit(`block:${getBlockHash(block.header).toString("base64")}`, block);
     });
     this.on("merkleblock", (block) => {
-      this.emit(
-        `merkleblock:${getBlockHash(block.header).toString("base64")}`,
-        block
-      );
+      this.emit(`merkleblock:${getBlockHash(block.header).toString("base64")}`, block);
     });
     this.on("tx", (tx) => {
       this.emit(`tx:${getTxHash(tx).toString("base64")}`, tx);
@@ -341,24 +301,13 @@ export class Peer extends EventEmitter {
     this.services = getServices(message.services);
 
     if (!this.services.NODE_NETWORK) {
-      return this._error(
-        new Error("Node does not provide NODE_NETWORK service")
-      );
+      return this._error(new Error("Node does not provide NODE_NETWORK service"));
     }
     this.version = message;
     if (message.version < this.minimumVersion) {
-      return this._error(
-        new Error(
-          "Peer is using an incompatible protocol version: " +
-            `required: >= ${this.minimumVersion}, actual: ${message.version}`
-        )
-      );
+      return this._error(new Error("Peer is using an incompatible protocol version: " + `required: >= ${this.minimumVersion}, actual: ${message.version}`));
     }
-    if (
-      this.requireBloom &&
-      message.version >= BLOOMSERVICE_VERSION &&
-      !this.services.NODE_BLOOM
-    ) {
+    if (this.requireBloom && message.version >= BLOOMSERVICE_VERSION && !this.services.NODE_BLOOM) {
       return this._error(new Error("Node does not provide NODE_BLOOM service"));
     }
     this.send("verack");
@@ -402,11 +351,7 @@ export class Peer extends EventEmitter {
     return MIN_TIMEOUT + this.latency * 10;
   }
 
-  getBlocks(
-    hashes: Array<Buffer>,
-    opts: Opts,
-    cb: (_err: Error | null, blocks?: Array<Block>) => void
-  ) {
+  getBlocks(hashes: Array<Buffer>, opts: Opts, cb: (_err: Error | null, blocks?: Array<Block>) => void) {
     if (typeof opts === "function") {
       cb = opts;
       opts = {};
@@ -418,9 +363,7 @@ export class Peer extends EventEmitter {
     const output = new Array(hashes.length);
     let remaining = hashes.length;
     hashes.forEach((hash: Buffer, i: number) => {
-      const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
-        "base64"
-      )}`;
+      const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString("base64")}`;
 
       events.once(event, (block: Block) => {
         output[i] = block;
@@ -433,19 +376,15 @@ export class Peer extends EventEmitter {
       });
     });
 
-    const inventory: Array<{ type: number; hash: Buffer }> = hashes.map(
-      (hash: Buffer) => ({
-        type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-        hash,
-      })
-    );
+    const inventory: Array<{ type: number; hash: Buffer }> = hashes.map((hash: Buffer) => ({
+      type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+      hash,
+    }));
     this.send("getdata", undefined, inventory);
 
     if (!opts.timeout) return;
     timeout = setTimeout(() => {
-      debug(
-        `getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`
-      );
+      debug(`getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`);
       events.removeAll();
       const error = new Error("Request timed out");
       // error.timeout = true;
@@ -453,11 +392,7 @@ export class Peer extends EventEmitter {
     }, opts.timeout);
   }
 
-  getTransactionsById(
-    txids: Array<Buffer>,
-    opts: Opts,
-    cb: (err: Error | null, transactions?: Array<Transaction>) => void
-  ) {
+  getTransactionsById(txids: Array<Buffer>, opts: Opts, cb: (err: Error | null, transactions?: Array<Transaction>) => void) {
     const output = new Array(txids.length);
     if (opts.timeout == null) opts.timeout = this._getTimeout();
     let timeout: NodeJS.Timeout;
@@ -482,9 +417,7 @@ export class Peer extends EventEmitter {
 
     if (!opts.timeout) return;
     timeout = setTimeout(() => {
-      debug(
-        `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
-      );
+      debug(`getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`);
       events.removeAll();
       const err = new Error("Request timed out");
       // err.timeout = true;
@@ -492,12 +425,7 @@ export class Peer extends EventEmitter {
     }, opts.timeout);
   }
 
-  getTransactionsByBlock(
-    blockHash: Buffer | null,
-    txids: Array<Buffer>,
-    opts: Opts,
-    cb: (err: Error | null, transactions?: Array<Transaction>) => void
-  ) {
+  getTransactionsByBlock(blockHash: Buffer | null, txids: Array<Buffer>, opts: Opts, cb: (err: Error | null, transactions?: Array<Transaction>) => void) {
     const output = new Array(txids.length);
 
     if (blockHash) {
@@ -505,42 +433,30 @@ export class Peer extends EventEmitter {
       txids.forEach((txid: Buffer, i: number) => {
         txIndex[txid.toString("base64")] = i;
       });
-      this.getBlocks(
-        [blockHash],
-        opts,
-        (err: Error | null, blocks?: Array<Block>) => {
-          if (err) return cb(err);
-          if (blocks) {
-            for (let tx of blocks[0].transactions) {
-              const id = getTxHash(tx).toString("base64");
-              const i = txIndex[id];
-              if (i == null) continue;
-              delete txIndex[id];
-              output[i] = tx;
-            }
+      this.getBlocks([blockHash], opts, (err: Error | null, blocks?: Array<Block>) => {
+        if (err) return cb(err);
+        if (blocks) {
+          for (let tx of blocks[0].transactions) {
+            const id = getTxHash(tx).toString("base64");
+            const i = txIndex[id];
+            if (i == null) continue;
+            delete txIndex[id];
+            output[i] = tx;
           }
-          cb(null, output);
         }
-      );
+        cb(null, output);
+      });
     }
   }
 
-  getHeaders(
-    locator: Array<Buffer>,
-    opts: Opts = {}
-  ): Promise<Array<Array<Header>>> {
+  getHeaders(locator: Array<Buffer>, opts: Opts = {}): Promise<Array<Array<Header>>> {
     const getHeadersParams: GetHeadersParam = {
       version: this.protocolVersion,
       locator,
       hashStop: opts.stop || nullHash,
     };
 
-    return this.send<Array<Header>>(
-      "getheaders",
-      ["headers"],
-      getHeadersParams,
-      opts.timeout
-    );
+    return this.send<Array<Header>>("getheaders", ["headers"], getHeadersParams, opts.timeout);
     // then((headerses: Array<Array<Header>>) => headerses[0]);
   }
 }

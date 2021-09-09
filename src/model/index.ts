@@ -14,20 +14,4 @@ import PeerParams from "./PeerParams";
 import PeersParams from "./PeersParams";
 import Opts from "./Opts";
 
-export {
-  Decoder,
-  Encoder,
-  Header,
-  GetHeadersParam,
-  Inventory,
-  PayloadReference,
-  PingPong,
-  ServiceBit,
-  VersionParams,
-  Message,
-  Block,
-  Transaction,
-  PeerParams,
-  PeersParams,
-  Opts,
-};
+export { Decoder, Encoder, Header, GetHeadersParam, Inventory, PayloadReference, PingPong, ServiceBit, VersionParams, Message, Block, Transaction, PeerParams, PeersParams, Opts };
