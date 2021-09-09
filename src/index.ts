@@ -1,9 +1,9 @@
 import { pseudoRandomBytes } from "crypto";
 import { Socket } from "net";
-import * as params from "./lib/params/params";
+// import * as params from "./lib/params/params";
 // import Peer from "./peer";
 // import PeerGroup from "./peerGroup.js";
-import { Peer, Peers, utils } from "./lib";
+import { Peer, utils } from "./lib";
 import { Block, Header, Transaction } from "./model";
 
 /* ****** */
@@ -76,10 +76,10 @@ const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" },
     // getPeerBlocks();
 
     //GET HEADERS
-    // getPeerHeaders();
+    getPeerHeaders();
 
     // GET TRANSACTIONS
-    getPeerTransactionsById();
+    // getPeerTransactionsById();
   });
 
   const getPeerHeaders = () => {
@@ -95,7 +95,7 @@ const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" },
       });
   };
 
-  const getPeerBlocks = () => {
+  /* const getPeerBlocks = () => {
     peer.getBlocks(
       [
         Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
@@ -115,9 +115,9 @@ const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" },
         });
       }
     );
-  };
+  }; */
 
-  const getPeerTransactionsByBlock = () => {
+  /* const getPeerTransactionsByBlock = () => {
     peer.getTransactionsByBlock(
       Buffer.from("000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a", "hex").reverse(),
       [Buffer.from("c72af2bd4827b54e4eef64a01a1e8fa29601c459c1e37dd9ab76dd118338e7bd", "hex").reverse()],
@@ -144,7 +144,7 @@ const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" },
         });
       }
     );
-  };
+  }; */
 });
 
 /* ****** */

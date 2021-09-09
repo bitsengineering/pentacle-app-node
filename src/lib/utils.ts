@@ -1,43 +1,12 @@
-import * as url from "url";
 import { createHash } from "crypto";
-import { PeerParams } from "../model";
+
 const encodeHeader = require("bitcoin-protocol").types.header.encode;
 const encodeTx = require("bitcoin-protocol").types.transaction.encode;
 
-export const getRandom = (array: Array<any>) => {
-  return array[Math.floor(Math.random() * array.length)];
-};
+const sha256 = (data: any) => createHash("sha256").update(data).digest();
 
-export const parseAddress = (address: string) => {
-  // if address has a protocol in it, we don't need to add a fake one
-  if (/^\w+:\/\//.test(address)) return url.parse(address);
-  return url.parse("x://" + address);
-};
+export const hashBlock = (header: any): string => sha256(sha256(encodeHeader(header))).toString("base64");
 
-export const assertParams = (params: PeerParams) => {
-  // TODO: check more things
-  // TODO: give more specific errors
-  if (!params || params.magic == null || !params.defaultPort) {
-    throw new Error("Invalid network parameters");
-  }
-};
+export const hashTx = (tx: any): string => sha256(sha256(encodeTx(tx))).toString("base64");
 
-export const sha256 = (data: any) => {
-  return createHash("sha256").update(data).digest();
-};
-
-export const getBlockHash = (header: any) => {
-  let headerBytes = encodeHeader(header);
-  return sha256(sha256(headerBytes));
-};
-
-export const getTxHash = (tx: any) => {
-  let txBytes = encodeTx(tx);
-  return sha256(sha256(txBytes));
-};
-
-export const toHexString = (byteArray: Uint8Array) => {
-  return Array.from(byteArray, function (byte) {
-    return ("0" + (byte & 0xff).toString(16)).slice(-2);
-  }).join("");
-};
+// export const toHexString = (byteArray: Uint8Array) => Array.from(byteArray, (byte) => ("0" + (byte & 0xff).toString(16)).slice(-2)).join("");
