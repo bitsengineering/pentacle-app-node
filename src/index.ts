@@ -70,31 +70,32 @@ import { Block, Header, Transaction } from "./model";
 
 const net = require("net");
 const socket: Socket = net.connect(
-  { port: 8333, host: "seed.bitcoinstats.com" },
+  { port: 8333, host: "seed.bitcoin.sipa.be" },
   () => {
     const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket });
-
-    peer.once("ready", () => {
+    peer.readyOnce().then(() => {
       // GET BLOCKS
       // getPeerBlocks();
 
       //GET HEADERS
-      getPeerHeaders();
+      // getPeerHeaders();
 
       // GET TRANSACTIONS
-      // getPeerTransactions();
+      getPeerTransactionsById();
     });
 
     const getPeerHeaders = () => {
       peer
-        .getHeaders(
+        .getHeaders([
           Buffer.from(
             "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
             "hex"
-          ).reverse()
-        )
-        .then((headers?: Array<Header>) => {
-          console.log("headers", headers);
+          ).reverse(),
+        ])
+        .then((headerses: Array<Array<Header>>) => {
+          console.log(headerses.length);
+          console.log(headerses[0].length);
+          console.log("headers", headerses[0][0].header.version);
         })
         .catch((error) => {
           console.log(error);
@@ -108,25 +109,29 @@ const socket: Socket = net.connect(
             "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
             "hex"
           ).reverse(),
+          Buffer.from(
+            "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
+            "hex"
+          ).reverse(),
         ],
         {},
         (_err: Error | null, blocks?: Array<Block>) => {
           console.log("err", _err);
           // console.log("blocks", blocks);
           blocks?.forEach((block: Block) => {
-            console.log(block);
-            block.transactions.forEach((transaction: Transaction) => {
-              console.log(transaction);
-              const a = utils.toHexString(transaction.ins[0].hash);
-              console.log("hashhh", a);
-            });
+            console.log(block.header.prevHash, block.transactions.length);
+            // block.transactions.forEach((transaction: Transaction) => {
+            //   console.log(transaction);
+            //   const a = utils.toHexString(transaction.ins[0].hash);
+            //   console.log("hashhh", a);
+            // });
           });
         }
       );
     };
 
-    const getPeerTransactions = () => {
-      peer.getTransactions(
+    const getPeerTransactionsByBlock = () => {
+      peer.getTransactionsByBlock(
         Buffer.from(
           "000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a",
           "hex"
@@ -134,6 +139,25 @@ const socket: Socket = net.connect(
         [
           Buffer.from(
             "c72af2bd4827b54e4eef64a01a1e8fa29601c459c1e37dd9ab76dd118338e7bd",
+            "hex"
+          ).reverse(),
+        ],
+        {},
+        (_err: Error | null, transactions?: Array<Transaction>) => {
+          console.log("err", _err);
+          console.log("transactions", transactions);
+          transactions?.map((transaction) => {
+            console.log("transaction", transaction);
+          });
+        }
+      );
+    };
+
+    const getPeerTransactionsById = () => {
+      peer.getTransactionsById(
+        [
+          Buffer.from(
+            "538e7f38afa8c6434191c1693a8b30de7cede3a73883f83e7b07c637f2109005",
             "hex"
           ).reverse(),
         ],

@@ -56,21 +56,25 @@ var lib_1 = require("./lib");
 /* ****** */
 //PEER CONNECTION
 var net = require("net");
-var socket = net.connect({ port: 8333, host: "seed.bitcoinstats.com" }, function () {
+var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function () {
     var peer = new lib_1.Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket: socket });
-    peer.once("ready", function () {
+    peer.readyOnce().then(function () {
         // GET BLOCKS
         // getPeerBlocks();
         //GET HEADERS
-        getPeerHeaders();
+        // getPeerHeaders();
         // GET TRANSACTIONS
-        // getPeerTransactions();
+        getPeerTransactionsById();
     });
     var getPeerHeaders = function () {
         peer
-            .getHeaders(Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse())
-            .then(function (headers) {
-            console.log("headers", headers);
+            .getHeaders([
+            Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
+        ])
+            .then(function (headerses) {
+            console.log(headerses.length);
+            console.log(headerses[0].length);
+            console.log("headers", headerses[0][0].header.version);
         })["catch"](function (error) {
             console.log(error);
         });
@@ -78,22 +82,34 @@ var socket = net.connect({ port: 8333, host: "seed.bitcoinstats.com" }, function
     var getPeerBlocks = function () {
         peer.getBlocks([
             Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
+            Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
         ], {}, function (_err, blocks) {
             console.log("err", _err);
             // console.log("blocks", blocks);
             blocks === null || blocks === void 0 ? void 0 : blocks.forEach(function (block) {
-                console.log(block);
-                block.transactions.forEach(function (transaction) {
-                    console.log(transaction);
-                    var a = lib_1.utils.toHexString(transaction.ins[0].hash);
-                    console.log("hashhh", a);
-                });
+                console.log(block.header.prevHash, block.transactions.length);
+                // block.transactions.forEach((transaction: Transaction) => {
+                //   console.log(transaction);
+                //   const a = utils.toHexString(transaction.ins[0].hash);
+                //   console.log("hashhh", a);
+                // });
             });
         });
     };
-    var getPeerTransactions = function () {
-        peer.getTransactions(Buffer.from("000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a", "hex").reverse(), [
+    var getPeerTransactionsByBlock = function () {
+        peer.getTransactionsByBlock(Buffer.from("000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a", "hex").reverse(), [
             Buffer.from("c72af2bd4827b54e4eef64a01a1e8fa29601c459c1e37dd9ab76dd118338e7bd", "hex").reverse(),
+        ], {}, function (_err, transactions) {
+            console.log("err", _err);
+            console.log("transactions", transactions);
+            transactions === null || transactions === void 0 ? void 0 : transactions.map(function (transaction) {
+                console.log("transaction", transaction);
+            });
+        });
+    };
+    var getPeerTransactionsById = function () {
+        peer.getTransactionsById([
+            Buffer.from("538e7f38afa8c6434191c1693a8b30de7cede3a73883f83e7b07c637f2109005", "hex").reverse(),
         ], {}, function (_err, transactions) {
             console.log("err", _err);
             console.log("transactions", transactions);

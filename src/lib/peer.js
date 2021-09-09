@@ -369,18 +369,42 @@ var Peer = /** @class */ (function (_super) {
             cb(error);
         }, opts.timeout);
     };
-    Peer.prototype.getTransactions = function (blockHash, txids, opts, cb) {
+    Peer.prototype.getTransactionsById = function (txids, opts, cb) {
         var _this = this;
-        // if (Array.isArray(blockHash)) {
-        //   cb = opts;
-        //   opts = txids;
-        //   txids = blockHash;
-        //   blockHash = null;
-        // }
-        if (typeof opts === "function") {
-            cb = opts;
-            opts = {};
-        }
+        var output = new Array(txids.length);
+        if (opts.timeout == null)
+            opts.timeout = this._getTimeout();
+        var timeout;
+        var remaining = txids.length;
+        var events = wrapEvents(this);
+        txids.forEach(function (txid, i) {
+            var hash = txid.toString("base64");
+            _this.once("tx:" + hash, function (tx) {
+                output[i] = tx;
+                remaining--;
+                if (remaining > 0)
+                    return;
+                if (timeout != null)
+                    clearTimeout(timeout);
+                cb(null, output);
+            });
+        });
+        var inventory = txids.map(function (hash) { return ({
+            type: INV.MSG_TX,
+            hash: hash
+        }); });
+        this.send("getdata", undefined, inventory);
+        if (!opts.timeout)
+            return;
+        timeout = setTimeout(function () {
+            debug("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining + "/" + txids.length);
+            events.removeAll();
+            var err = new Error("Request timed out");
+            // err.timeout = true;
+            cb(err);
+        }, opts.timeout);
+    };
+    Peer.prototype.getTransactionsByBlock = function (blockHash, txids, opts, cb) {
         var output = new Array(txids.length);
         if (blockHash) {
             var txIndex_1 = {};
@@ -403,40 +427,6 @@ var Peer = /** @class */ (function (_super) {
                 }
                 cb(null, output);
             });
-        }
-        else {
-            if (opts.timeout == null)
-                opts.timeout = this._getTimeout();
-            // TODO: make a function for all these similar timeout request methods
-            var timeout_1;
-            var remaining_1 = txids.length;
-            var events_2 = wrapEvents(this);
-            txids.forEach(function (txid, i) {
-                var hash = txid.toString("base64");
-                _this.once("tx:" + hash, function (tx) {
-                    output[i] = tx;
-                    remaining_1--;
-                    if (remaining_1 > 0)
-                        return;
-                    if (timeout_1 != null)
-                        clearTimeout(timeout_1);
-                    cb(null, output);
-                });
-            });
-            var inventory_2 = txids.map(function (hash) { return ({
-                type: INV.MSG_TX,
-                hash: hash
-            }); });
-            this.send("getdata", undefined, inventory_2);
-            if (!opts.timeout)
-                return;
-            timeout_1 = setTimeout(function () {
-                debug("getTransactions timed out: " + opts.timeout + " ms, remaining: " + remaining_1 + "/" + txids.length);
-                events_2.removeAll();
-                var err = new Error("Request timed out");
-                // err.timeout = true;
-                cb(err);
-            }, opts.timeout);
         }
     };
     Peer.prototype.getHeaders = function (locator, opts) {

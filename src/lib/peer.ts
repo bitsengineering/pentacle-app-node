@@ -453,23 +453,51 @@ export class Peer extends EventEmitter {
     }, opts.timeout);
   }
 
-  getTransactions(
+  getTransactionsById(
+    txids: Array<Buffer>,
+    opts: Opts,
+    cb: (err: Error | null, transactions?: Array<Transaction>) => void
+  ) {
+    const output = new Array(txids.length);
+    if (opts.timeout == null) opts.timeout = this._getTimeout();
+    let timeout: NodeJS.Timeout;
+    let remaining = txids.length;
+    const events = wrapEvents(this);
+    txids.forEach((txid: Buffer, i: number) => {
+      const hash = txid.toString("base64");
+      this.once(`tx:${hash}`, (tx) => {
+        output[i] = tx;
+        remaining--;
+        if (remaining > 0) return;
+        if (timeout != null) clearTimeout(timeout);
+        cb(null, output);
+      });
+    });
+
+    const inventory = txids.map((hash: Buffer) => ({
+      type: INV.MSG_TX,
+      hash,
+    }));
+    this.send("getdata", undefined, inventory);
+
+    if (!opts.timeout) return;
+    timeout = setTimeout(() => {
+      debug(
+        `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
+      );
+      events.removeAll();
+      const err = new Error("Request timed out");
+      // err.timeout = true;
+      cb(err);
+    }, opts.timeout);
+  }
+
+  getTransactionsByBlock(
     blockHash: Buffer | null,
     txids: Array<Buffer>,
     opts: Opts,
     cb: (err: Error | null, transactions?: Array<Transaction>) => void
   ) {
-    // if (Array.isArray(blockHash)) {
-    //   cb = opts;
-    //   opts = txids;
-    //   txids = blockHash;
-    //   blockHash = null;
-    // }
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    }
-
     const output = new Array(txids.length);
 
     if (blockHash) {
@@ -494,40 +522,6 @@ export class Peer extends EventEmitter {
           cb(null, output);
         }
       );
-    } else {
-      if (opts.timeout == null) opts.timeout = this._getTimeout();
-      // TODO: make a function for all these similar timeout request methods
-
-      let timeout: NodeJS.Timeout;
-      let remaining = txids.length;
-      const events = wrapEvents(this);
-      txids.forEach((txid: Buffer, i: number) => {
-        const hash = txid.toString("base64");
-        this.once(`tx:${hash}`, (tx) => {
-          output[i] = tx;
-          remaining--;
-          if (remaining > 0) return;
-          if (timeout != null) clearTimeout(timeout);
-          cb(null, output);
-        });
-      });
-
-      const inventory = txids.map((hash: Buffer) => ({
-        type: INV.MSG_TX,
-        hash,
-      }));
-      this.send("getdata", undefined, inventory);
-
-      if (!opts.timeout) return;
-      timeout = setTimeout(() => {
-        debug(
-          `getTransactions timed out: ${opts.timeout} ms, remaining: ${remaining}/${txids.length}`
-        );
-        events.removeAll();
-        const err = new Error("Request timed out");
-        // err.timeout = true;
-        cb(err);
-      }, opts.timeout);
     }
   }
 
