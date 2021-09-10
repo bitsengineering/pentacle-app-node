@@ -1,24 +1,15 @@
 // types
-import { Transform } from "stream";
 import { EventEmitter } from "events";
 // func
-import { obj } from "through2";
 import { pseudoRandomBytes } from "crypto";
 import { createDecodeStream, createEncodeStream } from "bitcoin-protocol";
 
-import Debug from "debug";
 // class
 import { Socket } from "net";
 
 // lib
-import { INVENTORY } from "./enum";
-import { Block, Header, Message, Opts, PeerParams, PayloadReference, PingPong, ServiceBit, Transaction, GetHeadersParam, VersionParams } from "../model";
+import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, ServiceBit, Transaction, GetHeadersParam, VersionParams } from "../model";
 import { hashBlock, hashTx } from "./utils";
-
-const wrapEvents = require("event-cleanup");
-const debug = Debug("bitcoin-net:peer");
-const rx = Debug("bitcoin-net:messages:rx");
-const tx = Debug("bitcoin-net:messages:tx");
 
 const SERVICES_SPV: Buffer = Buffer.from("0800000000000000", "hex");
 const SERVICES_FULL: Buffer = Buffer.from("0100000000000000", "hex");
@@ -60,12 +51,6 @@ const getServices = (buf: Buffer) => {
   return services;
 };
 
-const debugStream = (f: (message: string) => void) =>
-  obj((message: string, enc: any, cb: (err: Error | null, message: string) => void) => {
-    f(message);
-    cb(null, message);
-  });
-
 export class Peer extends EventEmitter {
   params: PeerParams;
   protocolVersion: number;
@@ -81,8 +66,8 @@ export class Peer extends EventEmitter {
   socket: Socket | null;
   _handshakeTimeout: NodeJS.Timeout | null;
   disconnected: boolean;
-  private _encoder: Transform | undefined;
-  private _decoder: Transform | undefined;
+  encoder: any;
+  decoder: any;
   _pingInterval?: NodeJS.Timeout;
   ready?: boolean;
   verack: boolean;
@@ -125,12 +110,12 @@ export class Peer extends EventEmitter {
     return new Promise<Array<T>>((resolve, reject) => {
       if (!this.socket?.writable) reject(new Error(`socket is not writable ${command}`));
 
-      if (!this._encoder) reject(new Error("Encoder is undefined"));
+      if (!this.encoder) reject(new Error("Encoder is undefined"));
 
-      if (this._encoder) {
+      if (this.encoder) {
         if (eventNames && eventNames.length > 0) {
           let nodejsTimeout: NodeJS.Timeout = setTimeout(() => {
-            debug(`${command} timed out: ${timeout} ms`);
+            // debug(`${command} timed out: ${timeout} ms`);
             if (eventNames && eventNames.length > 0) {
               eventNames.forEach((eventName: string) => {
                 this.removeListener(eventName, resolve);
@@ -153,7 +138,7 @@ export class Peer extends EventEmitter {
           // });
         }
 
-        this._encoder.write({ command, payload });
+        this.encoder.write({ command, payload });
       }
     });
   }
@@ -199,14 +184,12 @@ export class Peer extends EventEmitter {
       messages: this.params.messages,
     };
 
-    const decoder = createDecodeStream(protocolOpts);
-    decoder.on("error", this._error.bind(this));
-    this._decoder = debugStream(rx);
-    socket.pipe(decoder).pipe(this._decoder);
+    this.decoder = createDecodeStream(protocolOpts);
+    this.decoder.on("error", this._error.bind(this));
+    socket.pipe(this.decoder);
 
-    this._encoder = debugStream(tx);
-    const encoder = createEncodeStream(protocolOpts);
-    this._encoder.pipe(encoder).pipe(socket);
+    this.encoder = createEncodeStream(protocolOpts);
+    this.encoder.pipe(socket);
 
     // timeout if handshake doesn't finish fast enough
     if (this.handshakeTimeout) {
@@ -267,15 +250,15 @@ export class Peer extends EventEmitter {
   }
 
   _registerListeners() {
-    if (this._decoder) {
-      this._decoder.on("data", (message: Message) => {
+    if (this.decoder) {
+      this.decoder.on("data", (message: Message) => {
         this.emit("message", message);
         this.emit(message.command, message.payload);
       });
-      this._decoder.on("error", this._error.bind(this));
+      this.decoder.on("error", this._error.bind(this));
     }
 
-    if (this._encoder) this._encoder.on("error", this._error.bind(this));
+    if (this.encoder) this.encoder.on("error", this._error.bind(this));
 
     this.on("version", this._onVersion);
     this.on("verack", () => {
@@ -355,6 +338,5 @@ export class Peer extends EventEmitter {
     };
 
     return this.send<Array<Header>>("getheaders", ["headers"], getHeadersParams, opts.timeout);
-    // then((headerses: Array<Array<Header>>) => headerses[0]);
   }
 }

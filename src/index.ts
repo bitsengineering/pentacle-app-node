@@ -69,7 +69,7 @@ import { Block, Header, Transaction } from "./model";
 //PEER CONNECTION
 
 const net = require("net");
-const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, () => {
+const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.jonasschnelli.ch" }, () => {
   const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket });
   peer.readyOnce().then(() => {
     // GET BLOCKS
@@ -83,14 +83,17 @@ const socket: Socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" },
   });
 
   const getPeerHeaders = () => {
+    console.log("getPeerHeaders");
     peer
       .getHeaders([Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse()])
       .then((headerses: Array<Array<Header>>) => {
+        console.log("getPeerHeaders then");
         console.log(headerses.length);
         console.log(headerses[0].length);
         console.log("headers", headerses[0][0].header.version);
       })
       .catch((error) => {
+        console.log("getPeerHeaders catch");
         console.log(error);
       });
   };
