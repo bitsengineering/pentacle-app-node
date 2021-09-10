@@ -152,7 +152,7 @@ export class Peer extends EventEmitter {
     });
   }
 
-  registerOnceMulti<T>(eventNames: Array<string>): Promise<Array<T>> {
+  async registerOnceMulti<T>(eventNames: Array<string>): Promise<Array<T>> {
     const promises: Array<Promise<T>> = [];
     eventNames.forEach((eventName: string) => {
       const promise = new Promise<T>((resolve) => {
@@ -163,10 +163,9 @@ export class Peer extends EventEmitter {
       });
       promises.push(promise);
     });
-    return Promise.all<T>(promises).then((ts: Array<T>) => {
-      console.log("Promise all resolved", ts.length);
-      return ts;
-    });
+    const ts = await Promise.all<T>(promises);
+    console.log("Promise all resolved", ts.length);
+    return ts;
   }
 
   connect(socket: Socket) {
@@ -233,7 +232,7 @@ export class Peer extends EventEmitter {
     this.emit("disconnect", err);
   }
 
-  ping(): Promise<PingPong> {
+  async ping(): Promise<PingPong> {
     // const start = Date.now();
     const nonce = pseudoRandomBytes(8);
     const onPong = (pong: PingPong) => {
@@ -241,7 +240,8 @@ export class Peer extends EventEmitter {
       // console.log("ping elapsed ", Date.now() - start);
       return pong;
     };
-    return this.send<PingPong>("ping", ["pong"], { nonce }).then((pongs: Array<PingPong>) => onPong(pongs[0]));
+    const pongs = await this.send<PingPong>("ping", ["pong"], { nonce });
+    return onPong(pongs[0]);
   }
 
   _error(err: Error) {
