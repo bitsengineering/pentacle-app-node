@@ -8,57 +8,22 @@ import { createDecodeStream, createEncodeStream } from "bitcoin-protocol";
 import { Socket } from "net";
 
 // lib
-import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, ServiceBit, Transaction, GetHeadersParam, VersionParams } from "../model";
-import { hashBlock, hashTx } from "./utils";
+import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, Transaction, GetHeadersParam, VersionParams } from "../model";
 
-const SERVICES_SPV: Buffer = Buffer.from("0800000000000000", "hex");
-const SERVICES_FULL: Buffer = Buffer.from("0100000000000000", "hex");
-const BLOOMSERVICE_VERSION: number = 70011;
+// helper funcs.
+import { getServices, hashBlock, hashTx } from "./utils";
 
-const INITIAL_PING_N: number = 4; // send this many pings when we first connect
-const INITIAL_PING_INTERVAL: number = 250; // wait this many ms between initial pings
-const MIN_TIMEOUT: number = 4000; // lower bound for timeouts (in case latency is low)
-
-const LATENCY: number = 2 * 1000;
-const DEFAULT_TIMEOUT: number = MIN_TIMEOUT + LATENCY * 10;
-const nullHash = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
-
-const serviceBits: Array<ServiceBit> = [
-  { key: "NODE_NETWORK", value: 0 },
-  { key: "NODE_GETUTXO", value: 1 },
-  { key: "NODE_BLOOM", value: 2 },
-  { key: "NODE_WITNESS", value: 3 },
-  { key: "NODE_NETWORK_LIMITED", value: 10 },
-];
-
-// type Services = {
-//   NODE_NETWORK: boolean;
-//   NODE_BLOOM: boolean;
-//   NODE_WITNESS: boolean;
-//   NODE_NETWORK_LIMITED: boolean;
-// }
-
-const getServices = (buf: Buffer) => {
-  const services: { [key: string]: boolean } = {};
-  serviceBits.forEach((sr: ServiceBit) => {
-    const byteIndex = Math.floor(sr.value / 8);
-    const byte = buf.readUInt32LE(byteIndex);
-    const bitIndex = sr.value % 8;
-    if (byte & (1 << bitIndex)) {
-      services[sr.key] = true;
-    }
-  });
-  return services;
-};
+//constants
+import { BLOOMSERVICE_VERSION, DEFAULT_TIMEOUT, INITIAL_PING_INTERVAL, INITIAL_PING_N, nullHash, SERVICES_FULL, SERVICES_SPV } from "./constants";
 
 export class Peer extends EventEmitter {
   params: PeerParams;
-  protocolVersion: number;
+  protocolVersion: number; // The highest protocol version understood by the transmitting node.
   minimumVersion: number;
   requireBloom?: boolean;
   userAgent?: string;
   handshakeTimeout: number;
-  getTip?: () => { height: number };
+  startHeigh: number;
   relay: boolean;
   pingInterval: number;
   version: number | null | VersionParams;
@@ -85,9 +50,8 @@ export class Peer extends EventEmitter {
       else this.userAgent = `/node.js:${process.versions.node}/`;
       this.userAgent += `pentacle-app-node":1.0.0/`;
     }
-    if (opts.subUserAgent) this.userAgent += opts.subUserAgent;
     this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000;
-    this.getTip = opts.getTip;
+    this.startHeigh = opts.startHeigh || 0;
     this.relay = opts.relay || false;
     this.pingInterval = opts.pingInterval || 15 * 1000;
     this.version = null;
@@ -310,21 +274,21 @@ export class Peer extends EventEmitter {
   _sendVersion() {
     const versionParams: VersionParams = {
       version: this.protocolVersion,
-      services: SERVICES_SPV,
-      timestamp: Math.round(Date.now() / 1000),
+      services: SERVICES_SPV, // Services: NODE_NETWORK
+      timestamp: Math.round(Date.now() / 1000), // [Epoch time][unix epoch time]: 1415483324
       receiverAddress: {
-        services: SERVICES_FULL,
-        address: this.socket?.remoteAddress || "0.0.0.0",
-        port: this.socket?.remotePort || 0,
+        services: SERVICES_FULL, // Receiving node's services
+        address: this.socket?.remoteAddress || "0.0.0.0", // Receiving node's IPv6 address
+        port: this.socket?.remotePort || 0, // Receiving node's port number
       },
       senderAddress: {
-        services: SERVICES_SPV,
-        address: "0.0.0.0",
-        port: this.socket?.localPort || 0,
+        services: SERVICES_SPV, // Transmitting node's services
+        address: "0.0.0.0", // Transmitting node's IPv6 address
+        port: this.socket?.localPort || 0, // Transmitting node's port number
       },
       nonce: pseudoRandomBytes(8),
-      userAgent: this.userAgent,
-      startHeight: this.getTip ? this.getTip().height : 0,
+      userAgent: this.userAgent, // Bytes in user agent string
+      startHeight: this.startHeigh,
       relay: this.relay,
     };
     this.send("version", undefined, versionParams);

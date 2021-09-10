@@ -2,8 +2,6 @@ import { Socket } from "net";
 
 type Opts = {
   userAgent?: string;
-  subUserAgent?: string;
-  getTip?: any;
   relay?: boolean;
   socket?: Socket;
   handshakeTimeout?: number;
@@ -12,6 +10,7 @@ type Opts = {
   timeout?: number;
   filtered?: boolean;
   stop?: Buffer;
+  startHeigh?: number;
 };
 
 export default Opts;
