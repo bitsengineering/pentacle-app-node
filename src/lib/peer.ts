@@ -44,12 +44,7 @@ export class Peer extends EventEmitter {
     this.protocolVersion = params.protocolVersion || 70012;
     this.minimumVersion = params.minimumVersion || 70001;
     this.requireBloom = opts.requireBloom && true;
-    this.userAgent = opts.userAgent;
-    if (!opts.userAgent) {
-      if ((process as NodeJS.Process).browser) this.userAgent = `/${navigator.userAgent}/`;
-      else this.userAgent = `/node.js:${process.versions.node}/`;
-      this.userAgent += `pentacle-app-node":1.0.0/`;
-    }
+    this.userAgent = opts.userAgent || `/node.js:${process.versions.node}/pentacle-app-node":1.0.0/`;
     this.handshakeTimeout = opts.handshakeTimeout || 8 * 1000;
     this.startHeigh = opts.startHeigh || 0;
     this.relay = opts.relay || false;
