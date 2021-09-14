@@ -11,7 +11,7 @@ import { Socket } from "net";
 import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, Transaction, GetHeadersParam, VersionParams } from "../model";
 
 // helper funcs.
-import { getServices } from "./utils";
+import { getServices, hashBlock, hashTx } from "./utils";
 
 //constants
 import { BLOOMSERVICE_VERSION, DEFAULT_TIMEOUT, INITIAL_PING_INTERVAL, INITIAL_PING_N, nullHash, SERVICES_FULL, SERVICES_SPV } from "./constants";
@@ -66,7 +66,7 @@ export class PeerBase extends EventEmitter {
   }
 
   emit(eventName: string | symbol, ...args: any[]) {
-    console.log("emitlog", eventName, ...args);
+    // console.log("emitlog", eventName, ...args);
     return super.emit(eventName, ...args);
   }
 
@@ -238,15 +238,17 @@ export class PeerBase extends EventEmitter {
 
     this.on("ping", (message) => this.send("pong", undefined, message));
 
-    /* this.on("block", (block) => {
+    this.on("block", (block) => {
       this.emit(`block:${hashBlock(block.header)}`, block);
     });
+
     this.on("merkleblock", (block) => {
       this.emit(`merkleblock:${hashBlock(block.header)}`, block);
     });
+
     this.on("tx", (tx) => {
       this.emit(`tx:${hashTx(tx)}`, tx);
-    }); */
+    });
   }
 
   _onVersion(message: VersionParams) {
