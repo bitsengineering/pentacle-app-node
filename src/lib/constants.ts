@@ -4,10 +4,7 @@ export const magic: number = 0xd9b4bef9;
 
 export const defaultPort: number = 8333;
 
-export const nullHash: Buffer = Buffer.from(
-  "0000000000000000000000000000000000000000000000000000000000000000",
-  "hex"
-);
+export const nullHash: Buffer = Buffer.from("0000000000000000000000000000000000000000000000000000000000000000", "hex");
 
 export const SERVICES_SPV: Buffer = Buffer.from("0800000000000000", "hex");
 
@@ -32,6 +29,8 @@ export const serviceBits: Array<ServiceBit> = [
   { key: "NODE_WITNESS", value: 3 },
   { key: "NODE_NETWORK_LIMITED", value: 10 },
 ];
+
+export const GENESIS_BLOCK_HASH = "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f";
 
 export const dnsSeeds: string[] = [
   "seed.bitcoin.sipa.be",
