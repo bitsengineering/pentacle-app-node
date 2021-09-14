@@ -65,6 +65,11 @@ export class PeerBase extends EventEmitter {
     if (opts.socket) this.connect(opts.socket);
   }
 
+  emit(eventName: string | symbol, ...args: any[]) {
+    console.log("emitlog", eventName, ...args);
+    return super.emit(eventName, ...args);
+  }
+
   send<T>(command: string, eventNames?: Array<string>, payload?: PayloadReference, timeout: number = DEFAULT_TIMEOUT): Promise<Array<T>> {
     if (!["ping", "pong", "version", "verack"].includes(command)) console.log("send", command, eventNames, payload);
     return new Promise<Array<T>>((resolve, reject) => {

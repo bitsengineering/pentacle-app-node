@@ -27,8 +27,11 @@ const getPeerHeaders = () => {
 const getPeersBlocks = () => {
   console.log("getPeersBlocks");
 
-  const hashes: Buffer[] = [Buffer.from(GENESIS_BLOCK_HASH, "hex").reverse()];
-  const merkle: boolean = true;
+  const hashes: Buffer[] = [
+    Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
+    Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
+  ];
+  const merkle: boolean = false;
 
   peer
     .getBlocks(hashes, merkle)
