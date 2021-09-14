@@ -66,6 +66,7 @@ export class PeerBase extends EventEmitter {
   }
 
   send<T>(command: string, eventNames?: Array<string>, payload?: PayloadReference, timeout: number = DEFAULT_TIMEOUT): Promise<Array<T>> {
+    if (!["ping", "pong", "version", "verack"].includes(command)) console.log("send", command, eventNames, payload);
     return new Promise<Array<T>>((resolve, reject) => {
       if (!this.socket?.writable) reject(new Error(`socket is not writable ${command}`));
 
@@ -85,7 +86,7 @@ export class PeerBase extends EventEmitter {
           }, timeout);
 
           this.registerOnceMulti<T>(eventNames).then((ts: Array<T>) => {
-            console.log("this.once nodejsTimeout", command, eventNames, timeout);
+            // console.log("this.once nodejsTimeout", command, eventNames, timeout);
             clearTimeout(nodejsTimeout);
             resolve(ts);
           });
@@ -103,27 +104,30 @@ export class PeerBase extends EventEmitter {
   }
 
   registerOnceMono<T>(eventName: string): Promise<T> {
+    if (eventName !== "pong") console.log("registerOnceMono registered.", eventName);
+
     return new Promise((resolve) => {
       this.once(eventName, (t: T) => {
-        console.log("register once", eventName);
+        if (eventName !== "pong") console.log("registerOnceMono resolved.", eventName);
         resolve(t);
       });
     });
   }
 
   async registerOnceMulti<T>(eventNames: Array<string>): Promise<Array<T>> {
+    if (!eventNames.includes("pong")) console.log("registerOnceMulti registered", eventNames);
+
     const promises: Array<Promise<T>> = [];
     eventNames.forEach((eventName: string) => {
       const promise = new Promise<T>((resolve) => {
         return this.registerOnceMono<T>(eventName).then((t: T) => {
-          console.log("register once", eventName);
           resolve(t);
         });
       });
       promises.push(promise);
     });
     const ts = await Promise.all<T>(promises);
-    console.log("Promise all resolved", ts.length);
+    if (!eventNames.includes("pong")) console.log("registerOnceMulti promise all resolved.", ts.length);
     return ts;
   }
 
@@ -165,14 +169,14 @@ export class PeerBase extends EventEmitter {
     this.once("ready", () => {
       this._pingInterval = setInterval(() => {
         this.ping().catch((error: Error) => {
-          console.warn(error.message);
+          // console.warn(error.message);
         });
       }, this.pingInterval) as unknown as NodeJS.Timeout;
 
       for (let i = 0; i < INITIAL_PING_N; i++) {
         setTimeout(() => {
           this.ping().catch((error: Error) => {
-            console.warn(error.message);
+            // console.warn(error.message);
           });
         }, INITIAL_PING_INTERVAL * i);
       }
