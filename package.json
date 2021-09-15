@@ -17,6 +17,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "big-integer": "^1.6.48",
     "bitcoin-protocol": "^4.1.3"
   },
   "directories": {
