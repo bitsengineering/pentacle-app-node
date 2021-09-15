@@ -1,6 +1,4 @@
-import { BigInteger } from "big-integer";
-
-const bigInt = require("big-integer");
+import bigInt, { BigInteger } from "big-integer";
 
 const currentTarget = 0x1d00ffff;
 
@@ -42,7 +40,7 @@ export const difficultyIndex = (target: string): BigInteger => {
   const limit = bigInt("00000000FFFF0000000000000000000000000000000000000000000000000000", 16);
   const targetValue = bigInt(target, 16);
 
-  const difficultyIndex: BigInteger = limit.divide(targetValue).toJSNumber();
+  const difficultyIndex: BigInteger = limit.divide(targetValue);
 
   return difficultyIndex;
 };
