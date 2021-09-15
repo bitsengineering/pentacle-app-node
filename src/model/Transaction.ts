@@ -12,10 +12,10 @@ type In = {
 
 type Transaction = {
   version: 1 | 2;
-  ins: Array<In>;
+  ins: In[];
   marker?: uint8; // witness transaction value = 0
   flag?: uint8; // witness transaction value = 1
-  outs: Array<Out>;
+  outs: Out[];
   locktime: 0;
 };
 

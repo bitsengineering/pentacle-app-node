@@ -1,6 +1,6 @@
 type GetHeadersParam = {
   version: Number;
-  locator: Array<Buffer>; // 32 bytes
+  locator: Buffer[]; // 32 bytes
   hashStop: Buffer; // 32 bytes
 };
 

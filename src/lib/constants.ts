@@ -22,7 +22,7 @@ export const LATENCY: number = 2 * 1000;
 
 export const DEFAULT_TIMEOUT: number = MIN_TIMEOUT + LATENCY * 10;
 
-export const serviceBits: Array<ServiceBit> = [
+export const serviceBits: ServiceBit[] = [
   { key: "NODE_NETWORK", value: 0 },
   { key: "NODE_GETUTXO", value: 1 },
   { key: "NODE_BLOOM", value: 2 },

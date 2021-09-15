@@ -5,6 +5,6 @@ type Inv = {
   hash: Buffer; // 32 bytes
 };
 
-type Inventory = Array<Inv>;
+type Inventory = Inv[];
 
 export default Inventory;

@@ -1,7 +1,7 @@
 import PeerParams from "./PeerParams";
 
 type PeersParams = PeerParams & {
-  dnsSeeds?: Array<string>;
+  dnsSeeds?: string[];
   getNewPeer?: any;
 };
 

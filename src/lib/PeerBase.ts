@@ -66,13 +66,16 @@ export class PeerBase extends EventEmitter {
   }
 
   emit(eventName: string | symbol, ...args: any[]) {
-    // console.log("emitlog", eventName, ...args);
+    const payload: { command: string } = (args[0] as unknown as { command: string }) || { command: "" };
+    // console.log("args", args);
+    const dismiss = ["ping", "pong", "message", "version", "verack", "addr", "alert"];
+    if (!dismiss.includes(payload.command) && !dismiss.includes(eventName.toString())) console.log("emitlog", eventName, ...args);
     return super.emit(eventName, ...args);
   }
 
-  send<T>(command: string, eventNames?: Array<string>, payload?: PayloadReference, timeout: number = DEFAULT_TIMEOUT): Promise<Array<T>> {
+  send<T>(command: string, eventNames?: string[], payload?: PayloadReference, timeout: number = DEFAULT_TIMEOUT): Promise<T[]> {
     if (!["ping", "pong", "version", "verack"].includes(command)) console.log("send", command, eventNames, payload);
-    return new Promise<Array<T>>((resolve, reject) => {
+    return new Promise<T[]>((resolve, reject) => {
       if (!this.socket?.writable) reject(new Error(`socket is not writable ${command}`));
 
       if (!this.encoder) reject(new Error("Encoder is undefined"));
@@ -90,7 +93,7 @@ export class PeerBase extends EventEmitter {
             reject(error);
           }, timeout);
 
-          this.registerOnceMulti<T>(eventNames).then((ts: Array<T>) => {
+          this.registerOnceMulti<T>(eventNames).then((ts: T[]) => {
             // console.log("this.once nodejsTimeout", command, eventNames, timeout);
             clearTimeout(nodejsTimeout);
             resolve(ts);
@@ -119,10 +122,10 @@ export class PeerBase extends EventEmitter {
     });
   }
 
-  async registerOnceMulti<T>(eventNames: Array<string>): Promise<Array<T>> {
+  async registerOnceMulti<T>(eventNames: string[]): Promise<T[]> {
     if (!eventNames.includes("pong")) console.log("registerOnceMulti registered", eventNames);
 
-    const promises: Array<Promise<T>> = [];
+    const promises: Promise<T>[] = [];
     eventNames.forEach((eventName: string) => {
       const promise = new Promise<T>((resolve) => {
         return this.registerOnceMono<T>(eventName).then((t: T) => {
@@ -239,15 +242,16 @@ export class PeerBase extends EventEmitter {
     this.on("ping", (message) => this.send("pong", undefined, message));
 
     this.on("block", (block) => {
-      this.emit(`block:${hashBlock(block.header)}`, block);
+      this.emit(`block:${hashBlock(block.header).toString("base64")}`, block);
     });
 
     this.on("merkleblock", (block) => {
-      this.emit(`merkleblock:${hashBlock(block.header)}`, block);
+      this.emit(`merkleblock:${hashBlock(block.header.toString("base64"))}`, block);
     });
 
     this.on("tx", (tx) => {
-      this.emit(`tx:${hashTx(tx)}`, tx);
+      console.log("on tx", tx, hashTx(tx).toString("base64"));
+      this.emit(`tx:${hashTx(tx).toString("base64")}`, tx);
     });
   }
 

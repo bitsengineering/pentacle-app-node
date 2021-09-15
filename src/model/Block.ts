@@ -9,7 +9,7 @@ type Block = {
     bits: number;
     nonce: number;
   };
-  transactions: Array<Transaction>;
+  transactions: Transaction[];
 };
 
 export default Block;
