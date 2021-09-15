@@ -8,7 +8,7 @@ import { createDecodeStream, createEncodeStream } from "bitcoin-protocol";
 import { Socket } from "net";
 
 // lib
-import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, Transaction, GetHeadersParam, VersionParams } from "../model";
+import { Header, Message, Opts, PeerParams, PayloadReference, PingPong, Transaction, GetHeadersParam, VersionParams, Block } from "../model";
 
 // helper funcs.
 import { getServices, hashBlock, hashTx } from "./utils";
@@ -241,17 +241,20 @@ export class PeerBase extends EventEmitter {
 
     this.on("ping", (message) => this.send("pong", undefined, message));
 
-    this.on("block", (block) => {
-      this.emit(`block:${hashBlock(block.header).toString("base64")}`, block);
+    this.on("block", (block: Block) => {
+      const blockHashString: string = hashBlock(block.header).toString("base64");
+      this.emit(`block:${blockHashString}`, block);
     });
 
-    this.on("merkleblock", (block) => {
-      this.emit(`merkleblock:${hashBlock(block.header.toString("base64"))}`, block);
+    this.on("merkleblock", (block: Block) => {
+      const blockHashString: string = hashBlock(block.header).toString("base64");
+      this.emit(`merkleblock:${blockHashString}`, block);
     });
 
-    this.on("tx", (tx) => {
-      console.log("on tx", tx, hashTx(tx).toString("base64"));
-      this.emit(`tx:${hashTx(tx).toString("base64")}`, tx);
+    this.on("tx", (tx: Transaction) => {
+      const txHashString: string = hashTx(tx).toString("base64");
+      console.log("on tx", txHashString);
+      this.emit(`tx:${txHashString}`, tx);
     });
   }
 

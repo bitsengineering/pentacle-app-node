@@ -35,15 +35,15 @@ export class Peer extends PeerBase {
   }
 
   getTransactionsById(txids: Buffer[], witness = false): Promise<Transaction[]> {
-    console.log("getTransactionsById");
-
     const eventNames = txids.map((txid) => {
-      const eventName = `tx:${txid.toString("base64")}`;
+      const eventName = "tx"; // `tx:${txid.toString("base64")}`;
       console.log("TransactionsById event", eventName);
       return eventName;
     });
 
-    const inventory = txids.map((hash: Buffer) => ({ type: witness ? INVENTORY.MSG_WITNESS_BLOCK : INVENTORY.MSG_TX, hash }));
+    const inventory = txids.map((hash: Buffer) => {
+      return { type: witness ? INVENTORY.MSG_TX : INVENTORY.MSG_TX, hash };
+    });
 
     return this.send<Transaction>("getdata", eventNames, inventory);
   }

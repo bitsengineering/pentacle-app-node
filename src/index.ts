@@ -87,18 +87,19 @@ const connectionListener = (socket: Socket) => {
   peer.readyOnce().then(() => {
     // getPeerHeaders();
 
-    /* getPeersBlocks().then((block: Block) => {
-      console.log("hashTx", hashTx(block.transactions[0]));
-      getTransactionsById(hashTx(block.transactions[0]), block.transactions[0].version === 2);
+    getPeersBlocks().then((block: Block) => {
+      const txHash = hashTx(block.transactions[0]).toString("base64");
+      console.log("txHash", txHash);
+      getTransactionsById(hashTx(block.transactions[0]), block.transactions[0].version === 1);
       // getTransactionsById();
-    }); */
+    });
 
-    getTransactionsById();
+    // getTransactionsById();
   });
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[1] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
     connectionListener(socket);
   });
 };
