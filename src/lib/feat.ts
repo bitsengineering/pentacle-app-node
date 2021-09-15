@@ -6,7 +6,7 @@ const currentTarget = 0x1d00ffff;
 
 const twoWeekSec = 1209600;
 
-export const difficuiltyVerify = (prevTimestamp: number, currentTimestamp: number): BigInteger => {
+export const difficultyVerify = (prevTimestamp: number, currentTimestamp: number): BigInteger => {
   // 2 week
   const timeDiff = currentTimestamp - prevTimestamp;
 
