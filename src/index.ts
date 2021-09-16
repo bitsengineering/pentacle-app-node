@@ -68,7 +68,7 @@ const getTransactionsById = (buffer?: Buffer, witness?: boolean) => {
   console.log("uu", hashes);
 
   return peer
-    .getTransactionsById(hashes, true)
+    .getTransactionsByTx(hashes, true)
     .then((transactions: Transaction[]) => {
       console.log("getTransactionsById then");
       console.log(transactions.length);
