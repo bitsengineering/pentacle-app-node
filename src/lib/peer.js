@@ -330,44 +330,22 @@ var Peer = /** @class */ (function (_super) {
     Peer.prototype._getTimeout = function () {
         return MIN_TIMEOUT + this.latency * 10;
     };
-    Peer.prototype.getBlocks = function (hashes, opts, cb) {
-        if (typeof opts === "function") {
-            cb = opts;
-            opts = {};
-        }
-        if (opts.timeout == null)
-            opts.timeout = this._getTimeout();
-        var timeout;
-        var events = wrapEvents(this);
-        var output = new Array(hashes.length);
-        var remaining = hashes.length;
-        hashes.forEach(function (hash, i) {
-            var event = (opts.filtered ? "merkle" : "") + "block:" + hash.toString("base64");
-            events.once(event, function (block) {
-                output[i] = block;
-                console.log(remaining, block, new Date());
-                remaining--;
-                if (remaining > 0)
-                    return;
-                if (timeout != null)
-                    clearTimeout(timeout);
-                cb(null, output);
-            });
+    Peer.prototype.getBlocks = function (hashes, merkle) {
+        if (merkle === void 0) { merkle = false; }
+        console.log("getBlocks");
+        var eventNames = hashes.map(function (hash) {
+            var eventName = merkle ? "merkleblock" : "block";
+            eventName += ":" + hash.toString("base64");
+            console.log("getBlocks event", eventName);
+            return eventName;
         });
-        var inventory = hashes.map(function (hash) { return ({
-            type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-            hash: hash
-        }); });
-        this.send("getdata", undefined, inventory);
-        if (!opts.timeout)
-            return;
-        timeout = setTimeout(function () {
-            debug("getBlocks timed out: " + opts.timeout + " ms, remaining: " + remaining + "/" + hashes.length);
-            events.removeAll();
-            var error = new Error("Request timed out");
-            // error.timeout = true;
-            cb(error);
-        }, opts.timeout);
+        var inventory = hashes.map(function (hash) {
+            return {
+                type: merkle ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+                hash: hash
+            };
+        });
+        return this.send("getdata", eventNames, inventory);
     };
     Peer.prototype.getTransactionsById = function (txids, opts, cb) {
         var _this = this;
@@ -404,30 +382,31 @@ var Peer = /** @class */ (function (_super) {
             cb(err);
         }, opts.timeout);
     };
-    Peer.prototype.getTransactionsByBlock = function (blockHash, txids, opts, cb) {
-        var output = new Array(txids.length);
-        if (blockHash) {
-            var txIndex_1 = {};
-            txids.forEach(function (txid, i) {
-                txIndex_1[txid.toString("base64")] = i;
+    Peer.prototype.getTransactionsByBlock = function (blockHash /* txids: Buffer[]*/) {
+        // const output = new Array(txids.length);
+        var _this = this;
+        // if (blockHash) {
+        //   const txIndex: { [key: string]: number } = {};
+        //   txids.forEach((txid: Buffer, i: number) => {
+        //     txIndex[txid.toString("base64")] = i;
+        //   });
+        return new Promise(function (resolve, reject) {
+            _this.getBlocks([blockHash])
+                .then(function (blocks) {
+                blocks.map(function (block) {
+                    return resolve(block.transactions);
+                });
+            })["catch"](function (err) {
+                reject(err);
             });
-            this.getBlocks([blockHash], opts, function (err, blocks) {
-                if (err)
-                    return cb(err);
-                if (blocks) {
-                    for (var _i = 0, _a = blocks[0].transactions; _i < _a.length; _i++) {
-                        var tx_1 = _a[_i];
-                        var id = utils_1.getTxHash(tx_1).toString("base64");
-                        var i = txIndex_1[id];
-                        if (i == null)
-                            continue;
-                        delete txIndex_1[id];
-                        output[i] = tx_1;
-                    }
-                }
-                cb(null, output);
-            });
-        }
+            // for (let tx of blocks[0].transactions) {
+            //   const id = hashTx(tx).toString("base64");
+            //   const i = txIndex[id];
+            //   if (i == null) continue;
+            //   delete txIndex[id];
+            //   output[i] = tx;
+            // }
+        });
     };
     Peer.prototype.getHeaders = function (locator, opts) {
         if (opts === void 0) { opts = {}; }

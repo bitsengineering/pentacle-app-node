@@ -56,7 +56,7 @@ var lib_1 = require("./lib");
 /* ****** */
 //PEER CONNECTION
 var net = require("net");
-var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function () {
+var socket = net.connect({ port: 8333, host: "seed.bitcoinstats.com" }, function () {
     var peer = new lib_1.Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket: socket });
     peer.readyOnce().then(function () {
         // GET BLOCKS
@@ -64,7 +64,8 @@ var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function 
         //GET HEADERS
         // getPeerHeaders();
         // GET TRANSACTIONS
-        getPeerTransactionsById();
+        // getPeerTransactionsById();
+        getPeerTransactionsByBlock();
     });
     var getPeerHeaders = function () {
         peer
@@ -80,12 +81,11 @@ var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function 
         });
     };
     var getPeerBlocks = function () {
-        peer.getBlocks([
+        peer
+            .getBlocks([
             Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
-            Buffer.from("0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002", "hex").reverse(),
-        ], {}, function (_err, blocks) {
-            console.log("err", _err);
-            // console.log("blocks", blocks);
+        ])
+            .then(function (blocks) {
             blocks === null || blocks === void 0 ? void 0 : blocks.forEach(function (block) {
                 console.log(block.header.prevHash, block.transactions.length);
                 // block.transactions.forEach((transaction: Transaction) => {
@@ -97,10 +97,9 @@ var socket = net.connect({ port: 8333, host: "seed.bitcoin.sipa.be" }, function 
         });
     };
     var getPeerTransactionsByBlock = function () {
-        peer.getTransactionsByBlock(Buffer.from("000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a", "hex").reverse(), [
-            Buffer.from("c72af2bd4827b54e4eef64a01a1e8fa29601c459c1e37dd9ab76dd118338e7bd", "hex").reverse(),
-        ], {}, function (_err, transactions) {
-            console.log("err", _err);
+        peer
+            .getTransactionsByBlock(Buffer.from("000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a", "hex").reverse())
+            .then(function (transactions) {
             console.log("transactions", transactions);
             transactions === null || transactions === void 0 ? void 0 : transactions.map(function (transaction) {
                 console.log("transaction", transaction);

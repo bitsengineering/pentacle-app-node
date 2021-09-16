@@ -402,55 +402,26 @@ export class Peer extends EventEmitter {
     return MIN_TIMEOUT + this.latency * 10;
   }
 
-  getBlocks(
-    hashes: Array<Buffer>,
-    opts: Opts,
-    cb: (_err: Error | null, blocks?: Array<Block>) => void
-  ) {
-    if (typeof opts === "function") {
-      cb = opts;
-      opts = {};
-    }
-    if (opts.timeout == null) opts.timeout = this._getTimeout();
+  getBlocks(hashes: Buffer[], merkle = false): Promise<Block[]> {
+    console.log("getBlocks");
 
-    let timeout: NodeJS.Timeout;
-    const events = wrapEvents(this);
-    const output = new Array(hashes.length);
-    let remaining = hashes.length;
-    hashes.forEach((hash: Buffer, i: number) => {
-      const event = `${opts.filtered ? "merkle" : ""}block:${hash.toString(
-        "base64"
-      )}`;
-
-      events.once(event, (block: Block) => {
-        output[i] = block;
-        console.log(remaining, block, new Date());
-
-        remaining--;
-        if (remaining > 0) return;
-        if (timeout != null) clearTimeout(timeout);
-        cb(null, output);
-      });
+    const eventNames = hashes.map((hash) => {
+      let eventName = merkle ? "merkleblock" : "block";
+      eventName += `:${hash.toString("base64")}`;
+      console.log("getBlocks event", eventName);
+      return eventName;
     });
 
     const inventory: Array<{ type: number; hash: Buffer }> = hashes.map(
-      (hash: Buffer) => ({
-        type: opts.filtered ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
-        hash,
-      })
+      (hash: Buffer) => {
+        return {
+          type: merkle ? INV.MSG_FILTERED_BLOCK : INV.MSG_BLOCK,
+          hash,
+        };
+      }
     );
-    this.send("getdata", undefined, inventory);
 
-    if (!opts.timeout) return;
-    timeout = setTimeout(() => {
-      debug(
-        `getBlocks timed out: ${opts.timeout} ms, remaining: ${remaining}/${hashes.length}`
-      );
-      events.removeAll();
-      const error = new Error("Request timed out");
-      // error.timeout = true;
-      cb(error);
-    }, opts.timeout);
+    return this.send<Block>("getdata", eventNames, inventory);
   }
 
   getTransactionsById(
@@ -492,37 +463,33 @@ export class Peer extends EventEmitter {
     }, opts.timeout);
   }
 
-  getTransactionsByBlock(
-    blockHash: Buffer | null,
-    txids: Array<Buffer>,
-    opts: Opts,
-    cb: (err: Error | null, transactions?: Array<Transaction>) => void
-  ) {
-    const output = new Array(txids.length);
+  getTransactionsByBlock(blockHash: Buffer /* txids: Buffer[]*/) {
+    // const output = new Array(txids.length);
 
-    if (blockHash) {
-      const txIndex: { [key: string]: number } = {};
-      txids.forEach((txid: Buffer, i: number) => {
-        txIndex[txid.toString("base64")] = i;
-      });
-      this.getBlocks(
-        [blockHash],
-        opts,
-        (err: Error | null, blocks?: Array<Block>) => {
-          if (err) return cb(err);
-          if (blocks) {
-            for (let tx of blocks[0].transactions) {
-              const id = getTxHash(tx).toString("base64");
-              const i = txIndex[id];
-              if (i == null) continue;
-              delete txIndex[id];
-              output[i] = tx;
-            }
-          }
-          cb(null, output);
-        }
-      );
-    }
+    // if (blockHash) {
+    //   const txIndex: { [key: string]: number } = {};
+    //   txids.forEach((txid: Buffer, i: number) => {
+    //     txIndex[txid.toString("base64")] = i;
+    //   });
+    return new Promise<Transaction[]>((resolve, reject) => {
+      this.getBlocks([blockHash])
+        .then((blocks: Block[]) => {
+          blocks.map((block: Block) => {
+            return resolve(block.transactions);
+          });
+        })
+        .catch((err) => {
+          reject(err);
+        });
+
+      // for (let tx of blocks[0].transactions) {
+      //   const id = hashTx(tx).toString("base64");
+      //   const i = txIndex[id];
+      //   if (i == null) continue;
+      //   delete txIndex[id];
+      //   output[i] = tx;
+      // }
+    });
   }
 
   getHeaders(

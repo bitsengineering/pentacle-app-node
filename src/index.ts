@@ -70,7 +70,7 @@ import { Block, Header, Transaction } from "./model";
 
 const net = require("net");
 const socket: Socket = net.connect(
-  { port: 8333, host: "seed.bitcoin.sipa.be" },
+  { port: 8333, host: "seed.bitcoinstats.com" },
   () => {
     const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, { socket });
     peer.readyOnce().then(() => {
@@ -81,7 +81,8 @@ const socket: Socket = net.connect(
       // getPeerHeaders();
 
       // GET TRANSACTIONS
-      getPeerTransactionsById();
+      // getPeerTransactionsById();
+      getPeerTransactionsByBlock();
     });
 
     const getPeerHeaders = () => {
@@ -103,21 +104,14 @@ const socket: Socket = net.connect(
     };
 
     const getPeerBlocks = () => {
-      peer.getBlocks(
-        [
+      peer
+        .getBlocks([
           Buffer.from(
             "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
             "hex"
           ).reverse(),
-          Buffer.from(
-            "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
-            "hex"
-          ).reverse(),
-        ],
-        {},
-        (_err: Error | null, blocks?: Array<Block>) => {
-          console.log("err", _err);
-          // console.log("blocks", blocks);
+        ])
+        .then((blocks: Block[]) => {
           blocks?.forEach((block: Block) => {
             console.log(block.header.prevHash, block.transactions.length);
             // block.transactions.forEach((transaction: Transaction) => {
@@ -126,31 +120,23 @@ const socket: Socket = net.connect(
             //   console.log("hashhh", a);
             // });
           });
-        }
-      );
+        });
     };
 
     const getPeerTransactionsByBlock = () => {
-      peer.getTransactionsByBlock(
-        Buffer.from(
-          "000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a",
-          "hex"
-        ).reverse(),
-        [
+      peer
+        .getTransactionsByBlock(
           Buffer.from(
-            "c72af2bd4827b54e4eef64a01a1e8fa29601c459c1e37dd9ab76dd118338e7bd",
+            "000000000000000000028237ea0c92173613601276ae0182b8fd04388fe3fc6a",
             "hex"
-          ).reverse(),
-        ],
-        {},
-        (_err: Error | null, transactions?: Array<Transaction>) => {
-          console.log("err", _err);
+          ).reverse()
+        )
+        .then((transactions: Transaction[]) => {
           console.log("transactions", transactions);
           transactions?.map((transaction) => {
             console.log("transaction", transaction);
           });
-        }
-      );
+        });
     };
 
     const getPeerTransactionsById = () => {
