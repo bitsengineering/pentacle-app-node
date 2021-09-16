@@ -4,14 +4,18 @@ import { INVENTORY } from "./enum";
 import { PeerBase } from "./PeerBase";
 
 export class Peer extends PeerBase {
-  getHeaders(locator: Buffer[], opts: Opts = {}): Promise<Header[][]> {
+  private bufferHash(hash: string, reverse = true) {
+    return reverse ? Buffer.from(hash, "hex").reverse() : Buffer.from(hash, "hex");
+  }
+
+  getHeaders(blockHashes: string[], stopBlockHash?: string): Promise<Header[][]> {
     const getHeadersParams: GetHeadersParam = {
       version: this.protocolVersion,
-      locator,
-      hashStop: opts.stop || nullHash,
+      locator: blockHashes.map((blockHash) => this.bufferHash(blockHash)),
+      hashStop: stopBlockHash ? this.bufferHash(stopBlockHash) : nullHash,
     };
 
-    return this.send<Header[]>("getheaders", ["headers"], getHeadersParams, opts.timeout);
+    return this.send<Header[]>("getheaders", ["headers"], getHeadersParams);
   }
 
   getBlocks(hashes: Buffer[], merkle = false): Promise<Block[]> {
