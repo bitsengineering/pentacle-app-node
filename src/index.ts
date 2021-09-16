@@ -81,25 +81,54 @@ const getTransactionsById = (buffer?: Buffer, witness?: boolean) => {
     });
 };
 
+const getPeerTransactionsByBlock = (buffer?: Buffer) => {
+  const hashes: Buffer[] = buffer
+    ? [buffer]
+    : [
+        // Buffer.from("538e7f38afa8c6434191c1693a8b30de7cede3a73883f83e7b07c637f2109005", "hex").reverse(),
+        // Buffer.from("f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16", "hex").reverse(),
+        // Buffer.from("3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868", "hex").reverse(),
+        Buffer.from("1d2362fba0bd11cabdae3e080dad5f0f4db43799052ccaedfe1823baf3b702da", "hex").reverse(),
+      ];
+
+  return peer
+    .getTransactionsByBlock(hashes)
+    .then((transactions: Transaction[][]) => {
+      console.log("getTransactionsByBlock then");
+      console.log(transactions.length);
+      console.log("transactions version", transactions[0][0].version);
+      console.log("transactions ins.length", transactions[0][0].ins.length);
+    })
+    .catch((error) => {
+      console.log("getTransactionsByBlock catch");
+      console.log(error);
+    });
+};
+
 const connectionListener = (socket: Socket) => {
   peer.connect(socket);
 
   peer.readyOnce().then(() => {
     // getPeerHeaders();
 
-    getPeersBlocks().then((block: Block) => {
-      const txHash = hashTx(block.transactions[0]).toString("base64");
-      console.log("txHash", txHash);
-      getTransactionsById(hashTx(block.transactions[0]), block.transactions[0].version === 1);
-      // getTransactionsById();
-    });
+    // getPeersBlocks().then((block: Block) => {
+    //   const txHash = hashTx(block.transactions[0]).toString("base64");
+    //   console.log("txHash", txHash);
+    //   getTransactionsById(
+    //     hashTx(block.transactions[0]),
+    //     block.transactions[0].version === 1
+    //   );
+    //   // getTransactionsById();
+    // });
+
+    getPeerTransactionsByBlock();
 
     // getTransactionsById();
   });
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[4] }, () => {
     connectionListener(socket);
   });
 };

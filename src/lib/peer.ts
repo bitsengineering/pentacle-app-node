@@ -34,7 +34,7 @@ export class Peer extends PeerBase {
     return this.send<Block>("getdata", eventNames, inventory);
   }
 
-  getTransactionsById(txids: Buffer[], witness = false): Promise<Transaction[]> {
+  getTransactionsByTx(txids: Buffer[], witness = false): Promise<Transaction[]> {
     const eventNames = txids.map((txid) => {
       const eventName = "tx"; // `tx:${txid.toString("base64")}`;
       console.log("TransactionsById event", eventName);
@@ -48,27 +48,7 @@ export class Peer extends PeerBase {
     return this.send<Transaction>("getdata", eventNames, inventory);
   }
 
-  /* getTransactionsByBlock(blockHash: Buffer | null, txids: Buffer[], opts: Opts, cb: (err: Error | null, transactions?: Transaction[]) => void) {
-    const output = new Array(txids.length);
-
-    if (blockHash) {
-      const txIndex: { [key: string]: number } = {};
-      txids.forEach((txid: Buffer, i: number) => {
-        txIndex[txid.toString("base64")] = i;
-      });
-      this.getBlocks([blockHash], opts, (err: Error | null, blocks?: Block[]) => {
-        if (err) return cb(err);
-        if (blocks) {
-          for (let tx of blocks[0].transactions) {
-            const id = getTxHash(tx).toString("base64");
-            const i = txIndex[id];
-            if (i == null) continue;
-            delete txIndex[id];
-            output[i] = tx;
-          }
-        }
-        cb(null, output);
-      });
-    }
-  } */
+  getTransactionsByBlock(blockHashes: Buffer[]): Promise<Transaction[][]> {
+    return this.getBlocks(blockHashes).then((blocks: Block[]) => blocks.map((block: Block) => block.transactions));
+  }
 }
