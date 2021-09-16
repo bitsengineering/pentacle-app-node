@@ -27,7 +27,7 @@ export const bitsToTarget = (bitsInput: number): BigInteger => {
 
   var sign = bits.and(0x00800000).shiftRight(24).toJSNumber();
 
-  var exponent = bits.and(0xff000000).shiftRight(24).toJSNumber();
+  var exponent = bits.and(0xff000000).shiftRight(24).toJSNumber(); // first byte ?
 
   var mantissa = bits.and(0x007fffff);
 

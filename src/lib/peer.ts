@@ -42,7 +42,7 @@ export class Peer extends PeerBase {
     });
 
     const inventory = txids.map((hash: Buffer) => {
-      return { type: witness ? INVENTORY.MSG_TX : INVENTORY.MSG_TX, hash };
+      return { type: witness ? INVENTORY.MSG_WITNESS_TX : INVENTORY.MSG_TX, hash };
     });
 
     return this.send<Transaction>("getdata", eventNames, inventory);
