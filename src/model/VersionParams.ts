@@ -16,6 +16,7 @@ interface VersionParams {
   userAgent?: String;
   startHeight: Number;
   relay: Boolean;
+  // pchCommand?: string; //  "wtxidrelay" ver 70016
 }
 
 export default VersionParams;
