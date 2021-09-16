@@ -5,6 +5,7 @@ export enum INVENTORY {
   MSG_FILTERED_BLOCK = 3,
   MSG_WITNESS_TX = (1 << 30) + 1,
   MSG_WITNESS_BLOCK = (1 << 30) + 2,
+  // MSG_WTX = 5,
 }
 
 export enum REJECT {
