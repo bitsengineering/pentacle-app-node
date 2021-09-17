@@ -1,15 +1,21 @@
 import WizData from "@script-wiz/wiz-data";
 import { BigInteger } from "big-integer";
+import { Header } from "../model";
 
 const bigInt = require("big-integer");
 
+// block 32256
+const testBlockHash = 0x00000004f2886a170adb7204cb0c7a824217dd24d11a74423d564c4e0904967;
+
 const twoWeekSec = 1209600;
 
-export const difficultyVerify = (prevTimestamp: number, currentTimestamp: number): BigInteger => {
-  // 2 week
+const targetHex = 0x1d00ffff;
+
+export const blockHeaderVerify = (prevTimestamp: number, currentTimestamp: number, nextBlockHeader?: Header): boolean => {
+  // step 1 current target
   const timeDiff = currentTimestamp - prevTimestamp;
 
-  const currentTargetValue = bitsToTarget(0x1234);
+  const currentTargetValue = bitsToTarget(0x1d00ffff);
 
   const timeDiffValue = bigInt(timeDiff);
 
@@ -17,10 +23,23 @@ export const difficultyVerify = (prevTimestamp: number, currentTimestamp: number
 
   const divResultToTwoWeek = multiplyDifference.divide(bigInt(twoWeekSec));
 
-  const difficultyIndexResult = difficultyIndex(divResultToTwoWeek.toString(16));
+  const newBits = targetToBits(divResultToTwoWeek.toString());
 
-  // compare with 1
-  return difficultyIndexResult;
+  // if(nextBlockHeader.header.bits !== newBits){
+  //   return false;
+  // }
+
+  // step2 new target
+
+  const newTarget = bitsToTarget(Number("0x" + newBits));
+
+  const blockHashInt = bigInt(testBlockHash);
+
+  if (newTarget.compare(blockHashInt) !== 1) {
+    return false;
+  }
+
+  return true;
 };
 
 export const targetToBits = (input: string) => {
@@ -31,7 +50,9 @@ export const targetToBits = (input: string) => {
 
   const compactHexArray: string[] = [];
   compactUInt8Array.forEach((u: number) => {
-    compactHexArray.push(u.toString(16));
+    let newVal = u.toString(16);
+    if (newVal === "0") newVal = "00";
+    compactHexArray.push(newVal);
   });
 
   return compactHexArray.reverse().join("");
