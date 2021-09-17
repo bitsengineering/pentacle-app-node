@@ -1,6 +1,7 @@
-import bigInt, { BigInteger } from "big-integer";
+import WizData from "@script-wiz/wiz-data";
+import { BigInteger } from "big-integer";
 
-const currentTarget = 0x1d00ffff;
+const bigInt = require("big-integer");
 
 const twoWeekSec = 1209600;
 
@@ -8,7 +9,7 @@ export const difficultyVerify = (prevTimestamp: number, currentTimestamp: number
   // 2 week
   const timeDiff = currentTimestamp - prevTimestamp;
 
-  const currentTargetValue = bitsToTarget(currentTarget);
+  const currentTargetValue = bitsToTarget(0x1234);
 
   const timeDiffValue = bigInt(timeDiff);
 
@@ -20,6 +21,20 @@ export const difficultyVerify = (prevTimestamp: number, currentTimestamp: number
 
   // compare with 1
   return difficultyIndexResult;
+};
+
+export const targetToBits = (input: string) => {
+  const wizData = WizData.fromNumber(Number(input));
+  const wizDataBytes = new Uint8Array([...wizData.bytes, wizData.bytes.length]);
+
+  const compactUInt8Array = wizDataBytes.slice(-4);
+
+  const compactHexArray: string[] = [];
+  compactUInt8Array.forEach((u: number) => {
+    compactHexArray.push(u.toString(16));
+  });
+
+  return compactHexArray.reverse().join("");
 };
 
 export const bitsToTarget = (bitsInput: number): BigInteger => {

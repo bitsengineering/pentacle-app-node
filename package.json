@@ -6,7 +6,7 @@
   "scripts": {
     "peers": "tsc */**.ts && node src/peers.js",
     "peer": "tsc */**.ts && node src/peer.js",
-    "start": "tsc */**.ts && node src/index.js",
+    "start": "tsc */**.ts --downlevelIteration && node src/index.js",
     "test": "jest"
   },
   "keywords": [
@@ -17,6 +17,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@script-wiz/wiz-data": "^0.1.0",
     "big-integer": "^1.6.48",
     "bitcoin-protocol": "^4.1.3"
   },
