@@ -11,6 +11,19 @@ const twoWeekSec = 1209600;
 
 const maxTargetHex = 0x1d00ffff;
 
+export const blockHeaderSingleVerify = (initialBlock: Block, willVerifyBlock: Block) => {
+  const currentTarget = bitsToTarget(initialBlock.header.bits);
+
+  const blockHashInt = bigInt(willVerifyBlock.header.prevHash);
+
+  if (currentTarget.compare(blockHashInt) !== 1) {
+    return false;
+  }
+
+  return true;
+};
+
+// n. block için (n + 1) % 2016 = 1 için
 export const blockHeaderPeriodVerify = (prevBlockHeader: Header, currentBlockHeader: Header, nextBlock?: Block): boolean => {
   // step 1 current target
   const timeDiff = currentBlockHeader.header.timestamp - prevBlockHeader.header.timestamp;
