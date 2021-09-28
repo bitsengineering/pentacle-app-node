@@ -4,10 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "peers": "tsc */**.ts && node src/peers.js",
-    "peer": "tsc */**.ts && node src/peer.js",
-    "start": "tsc */**.ts --downlevelIteration && node src/index.js",
-    "test": "jest"
+    "build": "tsc",
+    "test": "jest",
+    "start": "yarn build && node dist/index.js"
   },
   "keywords": [
     "bitcoin",
