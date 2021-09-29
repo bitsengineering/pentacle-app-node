@@ -21,23 +21,20 @@ const readHeaders = (): BlockHeader[] => {
   return JSON.parse(data);
 };
 
-const writeHeader = (header: BlockHeader) => {
-  access("headers.json", async (notExist) => {
-    if (notExist) {
-      const json = JSON.stringify(header);
-      writeFileSync("headers.json", json, "utf8");
-    } else {
-      const currentHeaders = readHeaders();
-      let newHeaders = [...currentHeaders];
+const writeHeader = (header: BlockHeader, initial?: boolean) => {
+  const currentHeaders = initial ? [] : readHeaders();
+  let newHeaders = [...currentHeaders];
 
-      const existHeaderIndex = newHeaders.findIndex((hd) => hd.prevHashHex === header.prevHashHex);
-      if (existHeaderIndex === -1) {
-        newHeaders.push(header);
-        const json = JSON.stringify(newHeaders);
-        writeFileSync("headers.json", json, "utf8");
-      }
-    }
-  });
+  newHeaders.push(header);
+  const json = JSON.stringify(newHeaders);
+  writeFileSync("headers.json", json, "utf8");
+
+  // const existHeaderIndex = newHeaders.findIndex((hd) => hd.merkleRoot === header.merkleRoot);
+  // if (existHeaderIndex === -1) {
+  //   newHeaders.push(header);
+  //   const json = JSON.stringify(newHeaders);
+  //   writeFileSync("headers.json", json, "utf8");
+  // }
 };
 
 const getBlockHeaders = (peer: Peer, blockHash: string): Promise<BlockHeader[]> => {
@@ -65,6 +62,22 @@ const getFirstBlockHeader = (peer: Peer): Promise<BlockHeader> => {
 };
 
 export const storeHeaders = async (peer: Peer) => {
-  const firstHeader = await getFirstBlockHeader(peer);
-  writeHeader(firstHeader);
+  // writeHeader(firstHeader);
+  access("headers.json", async (notExist) => {
+    if (notExist) {
+      const firstHeader = await getFirstBlockHeader(peer);
+      writeHeader(firstHeader, true);
+    } else {
+      const currentHeaders = readHeaders();
+      // let newHeaders = [...currentHeaders];
+      let lastBlockHash = "";
+      if (currentHeaders.length === 1) {
+        lastBlockHash = GENESIS_BLOCK_HASH;
+      } else {
+        lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+      }
+      const blockHeaders = await getBlockHeaders(peer, lastBlockHash);
+      console.log(blockHeaders.length);
+    }
+  });
 };
