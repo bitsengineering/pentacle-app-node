@@ -29,27 +29,25 @@ class HeaderManagement {
         //   writeFileSync("headers.json", json, "utf8");
         // }
     };
-    getBlockHeaders = (blockHash) => {
-        return this.peer.getHeaders([blockHash]).then((headerses) => {
-            return headerses[0].map((headers, index) => {
-                return {
-                    ...headers.header,
-                    blockNumber: index + 1,
-                    prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash.reverse()).hex,
-                    merkleRootHex: wiz_data_1.default.fromBytes(headers.header.merkleRoot.reverse()).hex,
-                };
-            });
-        });
-    };
-    getFirstBlockHeader = () => {
-        return this.peer.getBlocks([constants_1.GENESIS_BLOCK_HASH]).then((blocks) => {
+    getBlockHeaders = async (blockHash, lastBlockNumber) => {
+        const headerses = await this.peer.getHeaders([blockHash]);
+        return headerses[0].map((headers, index) => {
             return {
-                ...blocks[0].header,
-                blockNumber: 0,
-                prevHashHex: wiz_data_1.default.fromBytes(blocks[0].header.prevHash.reverse()).hex,
-                merkleRootHex: wiz_data_1.default.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
+                ...headers.header,
+                blockNumber: index + lastBlockNumber,
+                prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash.reverse()).hex,
+                merkleRootHex: wiz_data_1.default.fromBytes(headers.header.merkleRoot.reverse()).hex,
             };
         });
+    };
+    getFirstBlockHeader = async () => {
+        const blocks = await this.peer.getBlocks([constants_1.GENESIS_BLOCK_HASH]);
+        return {
+            ...blocks[0].header,
+            blockNumber: 0,
+            prevHashHex: wiz_data_1.default.fromBytes(blocks[0].header.prevHash.reverse()).hex,
+            merkleRootHex: wiz_data_1.default.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
+        };
     };
     storeHeaders = async () => {
         // writeHeader(firstHeader);
@@ -62,13 +60,15 @@ class HeaderManagement {
                 const currentHeaders = this.readHeaders();
                 // let newHeaders = [...currentHeaders];
                 let lastBlockHash = "";
+                let lastBlockNumber = 0;
                 if (currentHeaders.length === 1) {
                     lastBlockHash = constants_1.GENESIS_BLOCK_HASH;
                 }
                 else {
                     lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+                    lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
                 }
-                const blockHeaders = await this.getBlockHeaders(lastBlockHash);
+                const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
                 blockHeaders.forEach((blockHeader) => {
                     this.writeHeader(blockHeader);
                 });

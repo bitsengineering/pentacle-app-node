@@ -1,6 +1,7 @@
 import WizData from "@script-wiz/wiz-data";
 import { BigInteger } from "big-integer";
 import { Block, Header } from "../model";
+import { BlockHeader } from "../model/BlockHeader";
 
 const bigInt = require("big-integer");
 
@@ -11,10 +12,10 @@ const twoWeekSec = 1209600;
 
 const maxTargetHex = 0x1d00ffff;
 
-export const blockHeaderSingleVerify = (initialBlock: Block, willVerifyBlock: Block) => {
-  const currentTarget = bitsToTarget(initialBlock.header.bits);
+export const blockHeaderSingleVerify = (initialBlock: BlockHeader, willVerifyBlock: BlockHeader) => {
+  const currentTarget = bitsToTarget(initialBlock.bits);
 
-  const blockHashInt = bigInt(willVerifyBlock.header.prevHash);
+  const blockHashInt = bigInt(willVerifyBlock.prevHash);
 
   if (currentTarget.compare(blockHashInt) !== 1) {
     return false;

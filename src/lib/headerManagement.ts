@@ -3,18 +3,7 @@ import { Peer } from "./Peer";
 import { access, readFileSync, writeFileSync } from "fs";
 import { GENESIS_BLOCK_HASH } from "./constants";
 import { Block, Header } from "../model";
-
-type BlockHeader = {
-  version: number;
-  prevHash: Buffer;
-  merkleRoot: Buffer;
-  timestamp: number;
-  bits: number;
-  nonce: number;
-  blockNumber: number;
-  prevHashHex: string;
-  merkleRootHex: string;
-};
+import { BlockHeader } from "../model/BlockHeader";
 
 export class HeaderManagement {
   peer!: Peer;
@@ -44,28 +33,26 @@ export class HeaderManagement {
     // }
   };
 
-  getBlockHeaders = (blockHash: string): Promise<BlockHeader[]> => {
-    return this.peer.getHeaders([blockHash]).then((headerses: Header[][]) => {
-      return headerses[0].map((headers: Header, index) => {
-        return {
-          ...headers.header,
-          blockNumber: index + 1,
-          prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
-          merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
-        };
-      });
+  getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
+    const headerses = await this.peer.getHeaders([blockHash]);
+    return headerses[0].map((headers: Header, index) => {
+      return {
+        ...headers.header,
+        blockNumber: index + lastBlockNumber,
+        prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
+        merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
+      };
     });
   };
 
-  getFirstBlockHeader = (): Promise<BlockHeader> => {
-    return this.peer.getBlocks([GENESIS_BLOCK_HASH]).then((blocks: Block[]) => {
-      return {
-        ...blocks[0].header,
-        blockNumber: 0,
-        prevHashHex: WizData.fromBytes(blocks[0].header.prevHash.reverse()).hex,
-        merkleRootHex: WizData.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
-      };
-    });
+  getFirstBlockHeader = async (): Promise<BlockHeader> => {
+    const blocks = await this.peer.getBlocks([GENESIS_BLOCK_HASH]);
+    return {
+      ...blocks[0].header,
+      blockNumber: 0,
+      prevHashHex: WizData.fromBytes(blocks[0].header.prevHash.reverse()).hex,
+      merkleRootHex: WizData.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
+    };
   };
 
   storeHeaders = async () => {
@@ -78,12 +65,16 @@ export class HeaderManagement {
         const currentHeaders = this.readHeaders();
         // let newHeaders = [...currentHeaders];
         let lastBlockHash = "";
+        let lastBlockNumber = 0;
+
         if (currentHeaders.length === 1) {
           lastBlockHash = GENESIS_BLOCK_HASH;
         } else {
           lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+          lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
         }
-        const blockHeaders = await this.getBlockHeaders(lastBlockHash);
+
+        const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
 
         blockHeaders.forEach((blockHeader: BlockHeader) => {
           this.writeHeader(blockHeader);
