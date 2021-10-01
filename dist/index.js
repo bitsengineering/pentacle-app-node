@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const lib_1 = require("./lib");
 const net_1 = require("net");
 const constants_1 = require("./lib/constants");
+const headerManagement_1 = require("./lib/headerManagement");
 const peer = new lib_1.Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, {});
 const getPeerHeaders = (blockHashes) => {
     console.log("getPeerHeaders");
@@ -102,12 +103,14 @@ const connectionListener = (socket) => {
         //   );
         //   // getTransactionsById();
         // });
-        getPeerTransactionsByBlock();
+        // getPeerTransactionsByBlock();
+        const headerManagement = new headerManagement_1.HeaderManagement(peer);
+        headerManagement.storeHeaders();
         // getPeerTransactionsByTx();
     });
 };
 const testIt = () => {
-    const socket = (0, net_1.connect)({ port: 8333, host: constants_1.dnsSeeds[0] }, () => {
+    const socket = (0, net_1.connect)({ port: 8333, host: constants_1.dnsSeeds[1] }, () => {
         connectionListener(socket);
     });
 };

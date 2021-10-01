@@ -16,68 +16,79 @@ type BlockHeader = {
   merkleRootHex: string;
 };
 
-const readHeaders = (): BlockHeader[] => {
-  const data = readFileSync("headers.json", "utf8");
-  return JSON.parse(data);
-};
+export class HeaderManagement {
+  peer!: Peer;
 
-const writeHeader = (header: BlockHeader, initial?: boolean) => {
-  const currentHeaders = initial ? [] : readHeaders();
-  let newHeaders = [...currentHeaders];
+  constructor(newPeer: Peer) {
+    this.peer = newPeer;
+  }
 
-  newHeaders.push(header);
-  const json = JSON.stringify(newHeaders);
-  writeFileSync("headers.json", json, "utf8");
+  private readHeaders = (): BlockHeader[] => {
+    const data = readFileSync("headers.json", "utf8");
+    return JSON.parse(data);
+  };
 
-  // const existHeaderIndex = newHeaders.findIndex((hd) => hd.merkleRoot === header.merkleRoot);
-  // if (existHeaderIndex === -1) {
-  //   newHeaders.push(header);
-  //   const json = JSON.stringify(newHeaders);
-  //   writeFileSync("headers.json", json, "utf8");
-  // }
-};
+  private writeHeader = (header: BlockHeader, initial?: boolean) => {
+    const currentHeaders = initial ? [] : this.readHeaders();
+    let newHeaders = [...currentHeaders];
 
-const getBlockHeaders = (peer: Peer, blockHash: string): Promise<BlockHeader[]> => {
-  return peer.getHeaders([blockHash]).then((headerses: Header[][]) => {
-    return headerses[0].map((headers: Header, index) => {
+    newHeaders.push(header);
+    const json = JSON.stringify(newHeaders);
+    writeFileSync("headers.json", json, "utf8");
+
+    // const existHeaderIndex = newHeaders.findIndex((hd) => hd.merkleRoot === header.merkleRoot);
+    // if (existHeaderIndex === -1) {
+    //   newHeaders.push(header);
+    //   const json = JSON.stringify(newHeaders);
+    //   writeFileSync("headers.json", json, "utf8");
+    // }
+  };
+
+  getBlockHeaders = (blockHash: string): Promise<BlockHeader[]> => {
+    return this.peer.getHeaders([blockHash]).then((headerses: Header[][]) => {
+      return headerses[0].map((headers: Header, index) => {
+        return {
+          ...headers.header,
+          blockNumber: index + 1,
+          prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
+          merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
+        };
+      });
+    });
+  };
+
+  getFirstBlockHeader = (): Promise<BlockHeader> => {
+    return this.peer.getBlocks([GENESIS_BLOCK_HASH]).then((blocks: Block[]) => {
       return {
-        ...headers.header,
-        blockNumber: index + 1,
-        prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
-        merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
+        ...blocks[0].header,
+        blockNumber: 0,
+        prevHashHex: WizData.fromBytes(blocks[0].header.prevHash.reverse()).hex,
+        merkleRootHex: WizData.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
       };
     });
-  });
-};
+  };
 
-const getFirstBlockHeader = (peer: Peer): Promise<BlockHeader> => {
-  return peer.getBlocks([GENESIS_BLOCK_HASH]).then((blocks: Block[]) => {
-    return {
-      ...blocks[0].header,
-      blockNumber: 0,
-      prevHashHex: WizData.fromBytes(blocks[0].header.prevHash.reverse()).hex,
-      merkleRootHex: WizData.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
-    };
-  });
-};
-
-export const storeHeaders = async (peer: Peer) => {
-  // writeHeader(firstHeader);
-  access("headers.json", async (notExist) => {
-    if (notExist) {
-      const firstHeader = await getFirstBlockHeader(peer);
-      writeHeader(firstHeader, true);
-    } else {
-      const currentHeaders = readHeaders();
-      // let newHeaders = [...currentHeaders];
-      let lastBlockHash = "";
-      if (currentHeaders.length === 1) {
-        lastBlockHash = GENESIS_BLOCK_HASH;
+  storeHeaders = async () => {
+    // writeHeader(firstHeader);
+    access("headers.json", async (notExist) => {
+      if (notExist) {
+        const firstHeader = await this.getFirstBlockHeader();
+        this.writeHeader(firstHeader, true);
       } else {
-        lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+        const currentHeaders = this.readHeaders();
+        // let newHeaders = [...currentHeaders];
+        let lastBlockHash = "";
+        if (currentHeaders.length === 1) {
+          lastBlockHash = GENESIS_BLOCK_HASH;
+        } else {
+          lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+        }
+        const blockHeaders = await this.getBlockHeaders(lastBlockHash);
+
+        blockHeaders.forEach((blockHeader: BlockHeader) => {
+          this.writeHeader(blockHeader);
+        });
       }
-      const blockHeaders = await getBlockHeaders(peer, lastBlockHash);
-      console.log(blockHeaders.length);
-    }
-  });
-};
+    });
+  };
+}

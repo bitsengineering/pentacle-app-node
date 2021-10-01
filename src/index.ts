@@ -3,6 +3,7 @@ import { Socket, connect as connectNet } from "net";
 import { Block, Header, Transaction } from "./model";
 import { dnsSeeds, GENESIS_BLOCK_HASH } from "./lib/constants";
 import { hashTx } from "./lib/utils";
+import { HeaderManagement } from "./lib/headerManagement";
 
 const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, {});
 
@@ -118,14 +119,18 @@ const connectionListener = (socket: Socket) => {
     //   // getTransactionsById();
     // });
 
-    getPeerTransactionsByBlock();
+    // getPeerTransactionsByBlock();
+
+    const headerManagement = new HeaderManagement(peer);
+
+    headerManagement.storeHeaders();
 
     // getPeerTransactionsByTx();
   });
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[1] }, () => {
     connectionListener(socket);
   });
 };
