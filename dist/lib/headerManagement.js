@@ -26,7 +26,7 @@ class HeaderManagement {
         let newHeaders = [...currentHeaders];
         newHeaders.push(header);
         const json = JSON.stringify(newHeaders);
-        (0, fs_1.writeFileSync)("headers.json", json, "utf8");
+        return (0, fs_1.writeFileSync)("headers.json", json, "utf8");
     };
     getBlockHeaders = async (blockHash, lastBlockNumber) => {
         const headerses = await this.peer.getHeaders([blockHash]);
@@ -50,51 +50,41 @@ class HeaderManagement {
             hash: constants_1.GENESIS_BLOCK_HASH,
         };
     };
+    getAndWriteHeaders = async () => {
+        const currentHeaders = this.readHeaders();
+        const lastBlockElement = currentHeaders[currentHeaders.length - 1];
+        const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
+        blockHeaders.forEach(async (blockHeader, index) => {
+            if (index === 0) {
+                const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
+                if (isVerify) {
+                    this.writeHeader(blockHeader);
+                }
+                else {
+                    throw "Verify Error";
+                }
+            }
+            else {
+                const isVerify = (0, feat_1.blockHeaderSingleVerify)(blockHeaders[index - 1], blockHeader);
+                if (isVerify) {
+                    this.writeHeader(blockHeader);
+                }
+                else {
+                    throw "Verify Error";
+                }
+            }
+        });
+    };
     storeHeaders = async () => {
         // writeHeader(firstHeader);
         (0, fs_1.access)("headers.json", async (notExist) => {
             if (notExist) {
                 const firstHeader = await this.getFirstBlockHeader();
                 this.writeHeader(firstHeader, true);
+                this.getAndWriteHeaders();
             }
             else {
-                const currentHeaders = this.readHeaders().sort((a, b) => {
-                    return a.blockNumber - b.blockNumber;
-                });
-                let lastBlockHash = "";
-                let lastBlockNumber = 0;
-                if (currentHeaders.length === 1) {
-                    lastBlockHash = constants_1.GENESIS_BLOCK_HASH;
-                }
-                else {
-                    lastBlockHash = currentHeaders[currentHeaders.length - 1].hash;
-                    lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
-                }
-                const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
-                blockHeaders.forEach((blockHeader, index) => {
-                    if (index === 0) {
-                        const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
-                        console.log("1");
-                        if (isVerify) {
-                            console.log("2");
-                            this.writeHeader(blockHeader);
-                        }
-                        else {
-                            throw "Verify Error";
-                        }
-                    }
-                    else {
-                        const isVerify = (0, feat_1.blockHeaderSingleVerify)(blockHeaders[index - 1], blockHeader);
-                        console.log("3");
-                        if (isVerify) {
-                            console.log("4");
-                            this.writeHeader(blockHeader);
-                        }
-                        else {
-                            throw "Verify Error";
-                        }
-                    }
-                });
+                //
             }
         });
     };

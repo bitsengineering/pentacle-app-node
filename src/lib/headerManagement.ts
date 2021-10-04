@@ -1,6 +1,6 @@
 import WizData from "@script-wiz/wiz-data";
 import { Peer } from "./Peer";
-import { access, readFileSync, writeFileSync } from "fs";
+import { access, readFileSync, writeFileSync, promises } from "fs";
 import { GENESIS_BLOCK_HASH } from "./constants";
 import { Block, Header } from "../model";
 import { BlockHeader } from "../model/BlockHeader";
@@ -28,7 +28,7 @@ export class HeaderManagement {
 
     newHeaders.push(header);
     const json = JSON.stringify(newHeaders);
-    writeFileSync("headers.json", json, "utf8");
+    return writeFileSync("headers.json", json, "utf8");
   };
 
   private getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
@@ -56,50 +56,45 @@ export class HeaderManagement {
     };
   };
 
+  private getAndWriteHeaders = async () => {
+    const currentHeaders = this.readHeaders();
+
+    const lastBlockElement = currentHeaders[currentHeaders.length - 1];
+
+    const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
+
+    blockHeaders.forEach(async (blockHeader: BlockHeader, index: number) => {
+      if (index === 0) {
+        const isVerify = blockHeaderSingleVerify(currentHeaders[currentHeaders.length - 1], blockHeader);
+
+        if (isVerify) {
+          this.writeHeader(blockHeader);
+        } else {
+          throw "Verify Error";
+        }
+      } else {
+        const isVerify = blockHeaderSingleVerify(blockHeaders[index - 1], blockHeader);
+
+        if (isVerify) {
+          this.writeHeader(blockHeader);
+        } else {
+          throw "Verify Error";
+        }
+      }
+    });
+  };
+
   storeHeaders = async () => {
     // writeHeader(firstHeader);
     access("headers.json", async (notExist) => {
       if (notExist) {
         const firstHeader = await this.getFirstBlockHeader();
+
         this.writeHeader(firstHeader, true);
+
+        this.getAndWriteHeaders();
       } else {
-        const currentHeaders = this.readHeaders().sort((a, b) => {
-          return a.blockNumber - b.blockNumber;
-        });
-
-        let lastBlockHash = "";
-        let lastBlockNumber = 0;
-
-        if (currentHeaders.length === 1) {
-          lastBlockHash = GENESIS_BLOCK_HASH;
-        } else {
-          lastBlockHash = currentHeaders[currentHeaders.length - 1].hash;
-          lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
-        }
-
-        const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
-
-        blockHeaders.forEach((blockHeader: BlockHeader, index: number) => {
-          if (index === 0) {
-            const isVerify = blockHeaderSingleVerify(currentHeaders[currentHeaders.length - 1], blockHeader);
-            console.log("1");
-            if (isVerify) {
-              console.log("2");
-              this.writeHeader(blockHeader);
-            } else {
-              throw "Verify Error";
-            }
-          } else {
-            const isVerify = blockHeaderSingleVerify(blockHeaders[index - 1], blockHeader);
-            console.log("3");
-            if (isVerify) {
-              console.log("4");
-              this.writeHeader(blockHeader);
-            } else {
-              throw "Verify Error";
-            }
-          }
-        });
+        this.getAndWriteHeaders();
       }
     });
   };
