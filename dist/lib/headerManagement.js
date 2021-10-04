@@ -29,13 +29,13 @@ class HeaderManagement {
     };
     getBlockHeaders = async (blockHash, lastBlockNumber) => {
         const headerses = await this.peer.getHeaders([blockHash]);
-        return headerses[0].map((headers, index) => {
+        return headerses[0].slice(0, -1).map((headers, index) => {
             return {
                 ...headers.header,
                 blockNumber: index + lastBlockNumber,
                 prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash).hex,
                 merkleRootHex: wiz_data_1.default.fromBytes(headers.header.merkleRoot.reverse()).hex,
-                hash: index + 1 !== headerses[0].length ? wiz_data_1.default.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
+                hash: wiz_data_1.default.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex,
             };
         });
     };
@@ -67,12 +67,11 @@ class HeaderManagement {
                     lastBlockHash = constants_1.GENESIS_BLOCK_HASH;
                 }
                 else {
-                    lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+                    lastBlockHash = currentHeaders[currentHeaders.length - 1].hash;
                     lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
                 }
-                console.log("lastblockhash ", lastBlockHash);
                 const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
-                blockHeaders.forEach((blockHeader) => {
+                blockHeaders.forEach((blockHeader, index) => {
                     this.writeHeader(blockHeader);
                 });
             }

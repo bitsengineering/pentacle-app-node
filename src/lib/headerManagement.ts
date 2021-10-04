@@ -4,6 +4,7 @@ import { access, readFileSync, writeFileSync } from "fs";
 import { GENESIS_BLOCK_HASH } from "./constants";
 import { Block, Header } from "../model";
 import { BlockHeader } from "../model/BlockHeader";
+import { blockHeaderSingleVerify } from "./feat";
 
 export class HeaderManagement {
   peer!: Peer;
@@ -32,13 +33,14 @@ export class HeaderManagement {
 
   getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
     const headerses = await this.peer.getHeaders([blockHash]);
-    return headerses[0].map((headers: Header, index) => {
+
+    return headerses[0].slice(0, -1).map((headers: Header, index) => {
       return {
         ...headers.header,
         blockNumber: index + lastBlockNumber,
         prevHashHex: WizData.fromBytes(headers.header.prevHash).hex,
         merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
-        hash: index + 1 !== headerses[0].length ? WizData.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
+        hash: WizData.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex,
       };
     });
   };
@@ -72,15 +74,13 @@ export class HeaderManagement {
         if (currentHeaders.length === 1) {
           lastBlockHash = GENESIS_BLOCK_HASH;
         } else {
-          lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
+          lastBlockHash = currentHeaders[currentHeaders.length - 1].hash;
           lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
         }
 
-        console.log("lastblockhash ", lastBlockHash);
-
         const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
 
-        blockHeaders.forEach((blockHeader: BlockHeader) => {
+        blockHeaders.forEach((blockHeader: BlockHeader, index: number) => {
           this.writeHeader(blockHeader);
         });
       }
