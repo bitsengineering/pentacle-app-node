@@ -31,7 +31,7 @@ export class HeaderManagement {
     writeFileSync("headers.json", json, "utf8");
   };
 
-  getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
+  private getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
     const headerses = await this.peer.getHeaders([blockHash]);
 
     return headerses[0].slice(0, -1).map((headers: Header, index) => {
@@ -45,7 +45,7 @@ export class HeaderManagement {
     });
   };
 
-  getFirstBlockHeader = async (): Promise<BlockHeader> => {
+  private getFirstBlockHeader = async (): Promise<BlockHeader> => {
     const blocks = await this.peer.getBlocks([GENESIS_BLOCK_HASH]);
     return {
       ...blocks[0].header,
@@ -67,7 +67,6 @@ export class HeaderManagement {
           return a.blockNumber - b.blockNumber;
         });
 
-        // let newHeaders = [...currentHeaders];
         let lastBlockHash = "";
         let lastBlockNumber = 0;
 
@@ -81,7 +80,25 @@ export class HeaderManagement {
         const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
 
         blockHeaders.forEach((blockHeader: BlockHeader, index: number) => {
-          this.writeHeader(blockHeader);
+          if (index === 0) {
+            const isVerify = blockHeaderSingleVerify(currentHeaders[currentHeaders.length - 1], blockHeader);
+            console.log("1");
+            if (isVerify) {
+              console.log("2");
+              this.writeHeader(blockHeader);
+            } else {
+              throw "Verify Error";
+            }
+          } else {
+            const isVerify = blockHeaderSingleVerify(blockHeaders[index - 1], blockHeader);
+            console.log("3");
+            if (isVerify) {
+              console.log("4");
+              this.writeHeader(blockHeader);
+            } else {
+              throw "Verify Error";
+            }
+          }
         });
       }
     });

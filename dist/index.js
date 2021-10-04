@@ -110,7 +110,7 @@ const connectionListener = (socket) => {
     });
 };
 const testIt = () => {
-    const socket = (0, net_1.connect)({ port: 8333, host: constants_1.dnsSeeds[4] }, () => {
+    const socket = (0, net_1.connect)({ port: 8333, host: constants_1.dnsSeeds[1] }, () => {
         connectionListener(socket);
     });
 };

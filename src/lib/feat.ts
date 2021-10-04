@@ -15,9 +15,9 @@ const maxTargetHex = 0x1d00ffff;
 export const blockHeaderSingleVerify = (initialBlock: BlockHeader, willVerifyBlock: BlockHeader) => {
   const currentTarget = bitsToTarget(initialBlock.bits);
 
-  const blockHashInt = bigInt(willVerifyBlock.prevHash);
+  const blockHashInt: BigInt = bigInt(parseInt(willVerifyBlock.hash, 16));
 
-  if (currentTarget.compare(blockHashInt) !== 1) {
+  if (currentTarget.compare(blockHashInt.valueOf()) !== 1) {
     return false;
   }
 

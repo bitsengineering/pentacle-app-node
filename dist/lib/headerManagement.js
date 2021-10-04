@@ -7,6 +7,7 @@ exports.HeaderManagement = void 0;
 const wiz_data_1 = __importDefault(require("@script-wiz/wiz-data"));
 const fs_1 = require("fs");
 const constants_1 = require("./constants");
+const feat_1 = require("./feat");
 class HeaderManagement {
     peer;
     constructor(newPeer) {
@@ -60,7 +61,6 @@ class HeaderManagement {
                 const currentHeaders = this.readHeaders().sort((a, b) => {
                     return a.blockNumber - b.blockNumber;
                 });
-                // let newHeaders = [...currentHeaders];
                 let lastBlockHash = "";
                 let lastBlockNumber = 0;
                 if (currentHeaders.length === 1) {
@@ -72,7 +72,28 @@ class HeaderManagement {
                 }
                 const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
                 blockHeaders.forEach((blockHeader, index) => {
-                    this.writeHeader(blockHeader);
+                    if (index === 0) {
+                        const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
+                        console.log("1");
+                        if (isVerify) {
+                            console.log("2");
+                            this.writeHeader(blockHeader);
+                        }
+                        else {
+                            throw "Verify Error";
+                        }
+                    }
+                    else {
+                        const isVerify = (0, feat_1.blockHeaderSingleVerify)(blockHeaders[index - 1], blockHeader);
+                        console.log("3");
+                        if (isVerify) {
+                            console.log("4");
+                            this.writeHeader(blockHeader);
+                        }
+                        else {
+                            throw "Verify Error";
+                        }
+                    }
                 });
             }
         });
