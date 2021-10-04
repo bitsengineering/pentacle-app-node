@@ -6,6 +6,7 @@ export type BlockHeader = {
   bits: number;
   nonce: number;
   blockNumber: number;
+  hash: string;
   prevHashHex: string;
   merkleRootHex: string;
 };

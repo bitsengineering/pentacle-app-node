@@ -18,19 +18,16 @@ export class HeaderManagement {
   };
 
   private writeHeader = (header: BlockHeader, initial?: boolean) => {
-    const currentHeaders = initial ? [] : this.readHeaders();
+    const currentHeaders = initial
+      ? []
+      : this.readHeaders().sort((a, b) => {
+          return a.blockNumber - b.blockNumber;
+        });
     let newHeaders = [...currentHeaders];
 
     newHeaders.push(header);
     const json = JSON.stringify(newHeaders);
     writeFileSync("headers.json", json, "utf8");
-
-    // const existHeaderIndex = newHeaders.findIndex((hd) => hd.merkleRoot === header.merkleRoot);
-    // if (existHeaderIndex === -1) {
-    //   newHeaders.push(header);
-    //   const json = JSON.stringify(newHeaders);
-    //   writeFileSync("headers.json", json, "utf8");
-    // }
   };
 
   getBlockHeaders = async (blockHash: string, lastBlockNumber: number): Promise<BlockHeader[]> => {
@@ -41,6 +38,7 @@ export class HeaderManagement {
         blockNumber: index + lastBlockNumber,
         prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
         merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
+        hash: index + 1 !== headerses[0].length ? WizData.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
       };
     });
   };
@@ -52,6 +50,7 @@ export class HeaderManagement {
       blockNumber: 0,
       prevHashHex: WizData.fromBytes(blocks[0].header.prevHash.reverse()).hex,
       merkleRootHex: WizData.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
+      hash: GENESIS_BLOCK_HASH,
     };
   };
 
@@ -62,7 +61,10 @@ export class HeaderManagement {
         const firstHeader = await this.getFirstBlockHeader();
         this.writeHeader(firstHeader, true);
       } else {
-        const currentHeaders = this.readHeaders();
+        const currentHeaders = this.readHeaders().sort((a, b) => {
+          return a.blockNumber - b.blockNumber;
+        });
+
         // let newHeaders = [...currentHeaders];
         let lastBlockHash = "";
         let lastBlockNumber = 0;

@@ -17,17 +17,15 @@ class HeaderManagement {
         return JSON.parse(data);
     };
     writeHeader = (header, initial) => {
-        const currentHeaders = initial ? [] : this.readHeaders();
+        const currentHeaders = initial
+            ? []
+            : this.readHeaders().sort((a, b) => {
+                return a.blockNumber - b.blockNumber;
+            });
         let newHeaders = [...currentHeaders];
         newHeaders.push(header);
         const json = JSON.stringify(newHeaders);
         (0, fs_1.writeFileSync)("headers.json", json, "utf8");
-        // const existHeaderIndex = newHeaders.findIndex((hd) => hd.merkleRoot === header.merkleRoot);
-        // if (existHeaderIndex === -1) {
-        //   newHeaders.push(header);
-        //   const json = JSON.stringify(newHeaders);
-        //   writeFileSync("headers.json", json, "utf8");
-        // }
     };
     getBlockHeaders = async (blockHash, lastBlockNumber) => {
         const headerses = await this.peer.getHeaders([blockHash]);
@@ -37,6 +35,7 @@ class HeaderManagement {
                 blockNumber: index + lastBlockNumber,
                 prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash.reverse()).hex,
                 merkleRootHex: wiz_data_1.default.fromBytes(headers.header.merkleRoot.reverse()).hex,
+                hash: index + 1 !== headerses[0].length ? wiz_data_1.default.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
             };
         });
     };
@@ -47,6 +46,7 @@ class HeaderManagement {
             blockNumber: 0,
             prevHashHex: wiz_data_1.default.fromBytes(blocks[0].header.prevHash.reverse()).hex,
             merkleRootHex: wiz_data_1.default.fromBytes(blocks[0].header.merkleRoot.reverse()).hex,
+            hash: constants_1.GENESIS_BLOCK_HASH,
         };
     };
     storeHeaders = async () => {
@@ -57,7 +57,9 @@ class HeaderManagement {
                 this.writeHeader(firstHeader, true);
             }
             else {
-                const currentHeaders = this.readHeaders();
+                const currentHeaders = this.readHeaders().sort((a, b) => {
+                    return a.blockNumber - b.blockNumber;
+                });
                 // let newHeaders = [...currentHeaders];
                 let lastBlockHash = "";
                 let lastBlockNumber = 0;

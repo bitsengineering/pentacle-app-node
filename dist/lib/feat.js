@@ -11,8 +11,8 @@ const testBlockHash = 0x00000004f2886a170adb7204cb0c7a824217dd24d11a74423d564c4e
 const twoWeekSec = 1209600;
 const maxTargetHex = 0x1d00ffff;
 const blockHeaderSingleVerify = (initialBlock, willVerifyBlock) => {
-    const currentTarget = (0, exports.bitsToTarget)(initialBlock.header.bits);
-    const blockHashInt = bigInt(willVerifyBlock.header.prevHash);
+    const currentTarget = (0, exports.bitsToTarget)(initialBlock.bits);
+    const blockHashInt = bigInt(willVerifyBlock.prevHash);
     if (currentTarget.compare(blockHashInt) !== 1) {
         return false;
     }
