@@ -62,8 +62,9 @@ class PeerBase extends events_1.EventEmitter {
         return super.emit(eventName, ...args);
     }
     send(command, eventNames, payload, timeout = constants_1.DEFAULT_TIMEOUT) {
-        if (!["ping", "pong", "version", "verack"].includes(command))
-            console.log("send", command, eventNames, payload);
+        if (!["ping", "pong", "version", "verack"].includes(command)) {
+            // console.log("send", command, eventNames, payload);
+        }
         return new Promise((resolve, reject) => {
             if (!this.socket?.writable)
                 reject(new Error(`socket is not writable ${command}`));
@@ -97,19 +98,22 @@ class PeerBase extends events_1.EventEmitter {
         });
     }
     registerOnceMono(eventName) {
-        if (eventName !== "pong")
-            console.log("registerOnceMono registered.", eventName);
+        if (eventName !== "pong") {
+            // console.log("registerOnceMono registered.", eventName);
+        }
         return new Promise((resolve) => {
             this.once(eventName, (t) => {
-                if (eventName !== "pong")
-                    console.log("registerOnceMono resolved.", eventName);
+                if (eventName !== "pong") {
+                    // console.log("registerOnceMono resolved.", eventName);
+                }
                 resolve(t);
             });
         });
     }
     async registerOnceMulti(eventNames) {
-        if (!eventNames.includes("pong"))
-            console.log("registerOnceMulti registered", eventNames);
+        if (!eventNames.includes("pong")) {
+            // console.log("registerOnceMulti registered", eventNames);
+        }
         const promises = [];
         eventNames.forEach((eventName) => {
             const promise = new Promise((resolve) => {
@@ -120,8 +124,9 @@ class PeerBase extends events_1.EventEmitter {
             promises.push(promise);
         });
         const ts = await Promise.all(promises);
-        if (!eventNames.includes("pong"))
-            console.log("registerOnceMulti promise all resolved.", ts.length);
+        if (!eventNames.includes("pong")) {
+            // console.log("registerOnceMulti promise all resolved.", ts.length);
+        }
         return ts;
     }
     connect(socket) {
@@ -226,7 +231,7 @@ class PeerBase extends events_1.EventEmitter {
         });
         this.on("tx", (tx) => {
             const txHashString = (0, utils_1.hashTx)(tx).toString("base64");
-            console.log("on tx", txHashString);
+            // console.log("on tx", txHashString);
             this.emit(`tx:${txHashString}`, tx);
         });
     }

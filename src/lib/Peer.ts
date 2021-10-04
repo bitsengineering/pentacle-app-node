@@ -19,12 +19,12 @@ export class Peer extends PeerBase {
   }
 
   getBlocks(hashes: string[], merkle = false): Promise<Block[]> {
-    console.log("getBlocks");
+    // console.log("getBlocks");
 
     const eventNames = hashes.map((hash) => {
       let eventName = merkle ? "merkleblock" : "block";
       eventName += `:${this.bufferHash(hash).toString("base64")}`;
-      console.log("getBlocks event", eventName);
+      // console.log("getBlocks event", eventName);
       return eventName;
     });
 
@@ -41,7 +41,7 @@ export class Peer extends PeerBase {
   getTransactionsByTx(txids: string[], witness = false): Promise<Transaction[]> {
     const eventNames = txids.map((txid: string) => {
       const eventName = "tx"; // `tx:${txid.toString("base64")}`;
-      console.log("TransactionsById event", eventName);
+      // console.log("TransactionsById event", eventName);
       return eventName;
     });
 

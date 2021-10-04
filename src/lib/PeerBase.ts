@@ -74,7 +74,9 @@ export class PeerBase extends EventEmitter {
   }
 
   send<T>(command: string, eventNames?: string[], payload?: PayloadReference, timeout: number = DEFAULT_TIMEOUT): Promise<T[]> {
-    if (!["ping", "pong", "version", "verack"].includes(command)) console.log("send", command, eventNames, payload);
+    if (!["ping", "pong", "version", "verack"].includes(command)) {
+      // console.log("send", command, eventNames, payload);
+    }
     return new Promise<T[]>((resolve, reject) => {
       if (!this.socket?.writable) reject(new Error(`socket is not writable ${command}`));
 
@@ -112,18 +114,24 @@ export class PeerBase extends EventEmitter {
   }
 
   registerOnceMono<T>(eventName: string): Promise<T> {
-    if (eventName !== "pong") console.log("registerOnceMono registered.", eventName);
+    if (eventName !== "pong") {
+      // console.log("registerOnceMono registered.", eventName);
+    }
 
     return new Promise((resolve) => {
       this.once(eventName, (t: T) => {
-        if (eventName !== "pong") console.log("registerOnceMono resolved.", eventName);
+        if (eventName !== "pong") {
+          // console.log("registerOnceMono resolved.", eventName);
+        }
         resolve(t);
       });
     });
   }
 
   async registerOnceMulti<T>(eventNames: string[]): Promise<T[]> {
-    if (!eventNames.includes("pong")) console.log("registerOnceMulti registered", eventNames);
+    if (!eventNames.includes("pong")) {
+      // console.log("registerOnceMulti registered", eventNames);
+    }
 
     const promises: Promise<T>[] = [];
     eventNames.forEach((eventName: string) => {
@@ -135,7 +143,9 @@ export class PeerBase extends EventEmitter {
       promises.push(promise);
     });
     const ts = await Promise.all<T>(promises);
-    if (!eventNames.includes("pong")) console.log("registerOnceMulti promise all resolved.", ts.length);
+    if (!eventNames.includes("pong")) {
+      // console.log("registerOnceMulti promise all resolved.", ts.length);
+    }
     return ts;
   }
 
@@ -253,7 +263,7 @@ export class PeerBase extends EventEmitter {
 
     this.on("tx", (tx: Transaction) => {
       const txHashString: string = hashTx(tx).toString("base64");
-      console.log("on tx", txHashString);
+      // console.log("on tx", txHashString);
       this.emit(`tx:${txHashString}`, tx);
     });
   }

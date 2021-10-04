@@ -17,11 +17,11 @@ class Peer extends PeerBase_1.PeerBase {
         return this.send("getheaders", ["headers"], getHeadersParams);
     }
     getBlocks(hashes, merkle = false) {
-        console.log("getBlocks");
+        // console.log("getBlocks");
         const eventNames = hashes.map((hash) => {
             let eventName = merkle ? "merkleblock" : "block";
             eventName += `:${this.bufferHash(hash).toString("base64")}`;
-            console.log("getBlocks event", eventName);
+            // console.log("getBlocks event", eventName);
             return eventName;
         });
         const inventory = hashes.map((hash) => {
@@ -35,7 +35,7 @@ class Peer extends PeerBase_1.PeerBase {
     getTransactionsByTx(txids, witness = false) {
         const eventNames = txids.map((txid) => {
             const eventName = "tx"; // `tx:${txid.toString("base64")}`;
-            console.log("TransactionsById event", eventName);
+            // console.log("TransactionsById event", eventName);
             return eventName;
         });
         const inventory = txids.map((hash) => {

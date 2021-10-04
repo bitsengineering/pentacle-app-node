@@ -33,7 +33,7 @@ class HeaderManagement {
             return {
                 ...headers.header,
                 blockNumber: index + lastBlockNumber,
-                prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash.reverse()).hex,
+                prevHashHex: wiz_data_1.default.fromBytes(headers.header.prevHash).hex,
                 merkleRootHex: wiz_data_1.default.fromBytes(headers.header.merkleRoot.reverse()).hex,
                 hash: index + 1 !== headerses[0].length ? wiz_data_1.default.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
             };
@@ -70,6 +70,7 @@ class HeaderManagement {
                     lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
                     lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
                 }
+                console.log("lastblockhash ", lastBlockHash);
                 const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
                 blockHeaders.forEach((blockHeader) => {
                     this.writeHeader(blockHeader);

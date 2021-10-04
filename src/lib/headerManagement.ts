@@ -36,7 +36,7 @@ export class HeaderManagement {
       return {
         ...headers.header,
         blockNumber: index + lastBlockNumber,
-        prevHashHex: WizData.fromBytes(headers.header.prevHash.reverse()).hex,
+        prevHashHex: WizData.fromBytes(headers.header.prevHash).hex,
         merkleRootHex: WizData.fromBytes(headers.header.merkleRoot.reverse()).hex,
         hash: index + 1 !== headerses[0].length ? WizData.fromBytes(headerses[0][index + 1].header.prevHash.reverse()).hex : "",
       };
@@ -75,6 +75,8 @@ export class HeaderManagement {
           lastBlockHash = currentHeaders[currentHeaders.length - 1].prevHashHex;
           lastBlockNumber = currentHeaders[currentHeaders.length - 1].blockNumber;
         }
+
+        console.log("lastblockhash ", lastBlockHash);
 
         const blockHeaders = await this.getBlockHeaders(lastBlockHash, lastBlockNumber + 1);
 
