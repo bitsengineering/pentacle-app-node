@@ -130,7 +130,7 @@ const connectionListener = (socket: Socket) => {
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[3] }, () => {
     connectionListener(socket);
   });
 };

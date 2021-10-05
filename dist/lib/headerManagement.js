@@ -18,7 +18,6 @@ class HeaderManagement {
         return JSON.parse(data);
     };
     writeHeader = (header, initial) => {
-        console.log(header.blockNumber);
         const currentHeaders = initial
             ? []
             : this.readHeaders().sort((a, b) => {
@@ -56,10 +55,12 @@ class HeaderManagement {
         const lastBlockElement = currentHeaders[currentHeaders.length - 1];
         let lastTimestamp = lastBlockElement.timestamp;
         const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
-        console.log("3");
         blockHeaders.forEach(async (blockHeader, index) => {
-            if (index === 0) {
-                const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
+            if (blockHeader.blockNumber % 2016 === 0) {
+                console.log(blockHeader.blockNumber);
+                const prevBlock = currentHeaders[blockHeader.blockNumber - 2016];
+                const currentBlock = currentHeaders[blockHeader.blockNumber - 1] ? currentHeaders[blockHeader.blockNumber - 1] : blockHeaders[index - 1];
+                const isVerify = (0, feat_1.blockHeaderPeriodVerify)(prevBlock, currentBlock, blockHeader);
                 if (isVerify) {
                     this.writeHeader(blockHeader);
                 }
@@ -68,32 +69,39 @@ class HeaderManagement {
                 }
             }
             else {
-                const isVerify = (0, feat_1.blockHeaderSingleVerify)(blockHeaders[index - 1], blockHeader);
-                if (isVerify) {
-                    this.writeHeader(blockHeader);
+                if (index === 0) {
+                    const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
+                    if (isVerify) {
+                        this.writeHeader(blockHeader);
+                    }
+                    else {
+                        throw "Verify Error";
+                    }
                 }
                 else {
-                    throw "Verify Error";
-                }
-                if (index === blockHeaders.length - 1) {
-                    lastTimestamp = blockHeader.timestamp;
+                    const isVerify = (0, feat_1.blockHeaderSingleVerify)(blockHeaders[index - 1], blockHeader);
+                    if (isVerify) {
+                        this.writeHeader(blockHeader);
+                    }
+                    else {
+                        throw "Verify Error";
+                    }
+                    if (index === blockHeaders.length - 1) {
+                        lastTimestamp = blockHeader.timestamp;
+                    }
                 }
             }
         });
         const now = Date.now();
         if (now > lastTimestamp) {
-            console.log("4");
             this.getAndWriteHeaders();
         }
     };
     storeHeaders = async () => {
-        // writeHeader(firstHeader);
         (0, fs_1.access)("headers.json", async (notExist) => {
             if (notExist) {
                 const firstHeader = await this.getFirstBlockHeader();
-                console.log("1");
                 this.writeHeader(firstHeader, true);
-                console.log("2");
                 this.getAndWriteHeaders();
             }
             else {

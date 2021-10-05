@@ -4,7 +4,7 @@ import { access, readFileSync, writeFileSync, promises } from "fs";
 import { GENESIS_BLOCK_HASH } from "./constants";
 import { Block, Header } from "../model";
 import { BlockHeader } from "../model/BlockHeader";
-import { blockHeaderSingleVerify } from "./feat";
+import { blockHeaderPeriodVerify, blockHeaderSingleVerify } from "./feat";
 
 export class HeaderManagement {
   peer!: Peer;
@@ -66,8 +66,11 @@ export class HeaderManagement {
     const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
 
     blockHeaders.forEach(async (blockHeader: BlockHeader, index: number) => {
-      if (index === 0) {
-        const isVerify = blockHeaderSingleVerify(currentHeaders[currentHeaders.length - 1], blockHeader);
+      if (blockHeader.blockNumber % 2016 === 0) {
+        const prevBlock = currentHeaders[blockHeader.blockNumber - 2016];
+        const currentBlock = currentHeaders[blockHeader.blockNumber - 1] ? currentHeaders[blockHeader.blockNumber - 1] : blockHeaders[index - 1];
+
+        const isVerify = blockHeaderPeriodVerify(prevBlock, currentBlock, blockHeader);
 
         if (isVerify) {
           this.writeHeader(blockHeader);
@@ -75,16 +78,26 @@ export class HeaderManagement {
           throw "Verify Error";
         }
       } else {
-        const isVerify = blockHeaderSingleVerify(blockHeaders[index - 1], blockHeader);
+        if (index === 0) {
+          const isVerify = blockHeaderSingleVerify(currentHeaders[currentHeaders.length - 1], blockHeader);
 
-        if (isVerify) {
-          this.writeHeader(blockHeader);
+          if (isVerify) {
+            this.writeHeader(blockHeader);
+          } else {
+            throw "Verify Error";
+          }
         } else {
-          throw "Verify Error";
-        }
+          const isVerify = blockHeaderSingleVerify(blockHeaders[index - 1], blockHeader);
 
-        if (index === blockHeaders.length - 1) {
-          lastTimestamp = blockHeader.timestamp;
+          if (isVerify) {
+            this.writeHeader(blockHeader);
+          } else {
+            throw "Verify Error";
+          }
+
+          if (index === blockHeaders.length - 1) {
+            lastTimestamp = blockHeader.timestamp;
+          }
         }
       }
     });
@@ -97,7 +110,6 @@ export class HeaderManagement {
   };
 
   storeHeaders = async () => {
-    // writeHeader(firstHeader);
     access("headers.json", async (notExist) => {
       if (notExist) {
         const firstHeader = await this.getFirstBlockHeader();
