@@ -18,6 +18,7 @@ class HeaderManagement {
         return JSON.parse(data);
     };
     writeHeader = (header, initial) => {
+        console.log(header.blockNumber);
         const currentHeaders = initial
             ? []
             : this.readHeaders().sort((a, b) => {
@@ -55,6 +56,7 @@ class HeaderManagement {
         const lastBlockElement = currentHeaders[currentHeaders.length - 1];
         let lastTimestamp = lastBlockElement.timestamp;
         const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
+        console.log("3");
         blockHeaders.forEach(async (blockHeader, index) => {
             if (index === 0) {
                 const isVerify = (0, feat_1.blockHeaderSingleVerify)(currentHeaders[currentHeaders.length - 1], blockHeader);
@@ -80,6 +82,7 @@ class HeaderManagement {
         });
         const now = Date.now();
         if (now > lastTimestamp) {
+            console.log("4");
             this.getAndWriteHeaders();
         }
     };
@@ -88,7 +91,9 @@ class HeaderManagement {
         (0, fs_1.access)("headers.json", async (notExist) => {
             if (notExist) {
                 const firstHeader = await this.getFirstBlockHeader();
+                console.log("1");
                 this.writeHeader(firstHeader, true);
+                console.log("2");
                 this.getAndWriteHeaders();
             }
             else {

@@ -57,8 +57,9 @@ class PeerBase extends events_1.EventEmitter {
         const payload = args[0] || { command: "" };
         // console.log("args", args);
         const dismiss = ["ping", "pong", "message", "version", "verack", "addr", "alert"];
-        if (!dismiss.includes(payload.command) && !dismiss.includes(eventName.toString()))
-            console.log("emitlog", eventName, ...args);
+        if (!dismiss.includes(payload.command) && !dismiss.includes(eventName.toString())) {
+            // console.log("emitlog", eventName, ...args);
+        }
         return super.emit(eventName, ...args);
     }
     send(command, eventNames, payload, timeout = constants_1.DEFAULT_TIMEOUT) {

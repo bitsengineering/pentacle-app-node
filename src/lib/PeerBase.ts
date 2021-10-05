@@ -69,7 +69,9 @@ export class PeerBase extends EventEmitter {
     const payload: { command: string } = (args[0] as unknown as { command: string }) || { command: "" };
     // console.log("args", args);
     const dismiss = ["ping", "pong", "message", "version", "verack", "addr", "alert"];
-    if (!dismiss.includes(payload.command) && !dismiss.includes(eventName.toString())) console.log("emitlog", eventName, ...args);
+    if (!dismiss.includes(payload.command) && !dismiss.includes(eventName.toString())) {
+      // console.log("emitlog", eventName, ...args);
+    }
     return super.emit(eventName, ...args);
   }
 
