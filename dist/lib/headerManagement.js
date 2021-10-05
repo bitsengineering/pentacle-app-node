@@ -53,6 +53,7 @@ class HeaderManagement {
     getAndWriteHeaders = async () => {
         const currentHeaders = this.readHeaders();
         const lastBlockElement = currentHeaders[currentHeaders.length - 1];
+        let lastTimestamp = lastBlockElement.timestamp;
         const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
         blockHeaders.forEach(async (blockHeader, index) => {
             if (index === 0) {
@@ -72,8 +73,15 @@ class HeaderManagement {
                 else {
                     throw "Verify Error";
                 }
+                if (index === blockHeaders.length - 1) {
+                    lastTimestamp = blockHeader.timestamp;
+                }
             }
         });
+        const now = Date.now();
+        if (now > lastTimestamp) {
+            this.getAndWriteHeaders();
+        }
     };
     storeHeaders = async () => {
         // writeHeader(firstHeader);
@@ -84,7 +92,7 @@ class HeaderManagement {
                 this.getAndWriteHeaders();
             }
             else {
-                //
+                this.getAndWriteHeaders();
             }
         });
     };

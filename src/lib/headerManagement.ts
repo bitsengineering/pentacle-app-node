@@ -61,6 +61,8 @@ export class HeaderManagement {
 
     const lastBlockElement = currentHeaders[currentHeaders.length - 1];
 
+    let lastTimestamp = lastBlockElement.timestamp;
+
     const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
 
     blockHeaders.forEach(async (blockHeader: BlockHeader, index: number) => {
@@ -80,8 +82,18 @@ export class HeaderManagement {
         } else {
           throw "Verify Error";
         }
+
+        if (index === blockHeaders.length - 1) {
+          lastTimestamp = blockHeader.timestamp;
+        }
       }
     });
+
+    const now = Date.now();
+
+    if (now > lastTimestamp) {
+      this.getAndWriteHeaders();
+    }
   };
 
   storeHeaders = async () => {
