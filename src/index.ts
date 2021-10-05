@@ -4,6 +4,9 @@ import { Block, Header, Transaction } from "./model";
 import { dnsSeeds, GENESIS_BLOCK_HASH } from "./lib/constants";
 import { hashTx } from "./lib/utils";
 import { HeaderManagement } from "./lib/headerManagement";
+import { BlockHeader } from "./model/BlockHeader";
+import { readFileSync } from "fs";
+import { blockHeaderPeriodVerify } from "./lib/feat";
 
 const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, {});
 
@@ -130,7 +133,7 @@ const connectionListener = (socket: Socket) => {
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[3] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
     connectionListener(socket);
   });
 };

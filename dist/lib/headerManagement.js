@@ -57,7 +57,6 @@ class HeaderManagement {
         const blockHeaders = await this.getBlockHeaders(lastBlockElement.hash, lastBlockElement.blockNumber + 1);
         blockHeaders.forEach(async (blockHeader, index) => {
             if (blockHeader.blockNumber % 2016 === 0) {
-                console.log(blockHeader.blockNumber);
                 const prevBlock = currentHeaders[blockHeader.blockNumber - 2016];
                 const currentBlock = currentHeaders[blockHeader.blockNumber - 1] ? currentHeaders[blockHeader.blockNumber - 1] : blockHeaders[index - 1];
                 const isVerify = (0, feat_1.blockHeaderPeriodVerify)(prevBlock, currentBlock, blockHeader);

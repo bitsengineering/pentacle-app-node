@@ -1,6 +1,5 @@
 import WizData from "@script-wiz/wiz-data";
 import { BigInteger } from "big-integer";
-import { Block, Header } from "../model";
 import { BlockHeader } from "../model/BlockHeader";
 
 const bigInt = require("big-integer");
@@ -28,7 +27,7 @@ export const blockHeaderSingleVerify = (initialBlock: BlockHeader, willVerifyBlo
 export const blockHeaderPeriodVerify = (prevBlockHeader: BlockHeader, currentBlockHeader: BlockHeader, nextBlock: BlockHeader): boolean => {
   const timeDiff = currentBlockHeader.timestamp - prevBlockHeader.timestamp;
 
-  const currentTargetValue = bitsToTarget(prevBlockHeader.bits);
+  const currentTargetValue = bitsToTarget(currentBlockHeader.bits);
 
   const timeDiffValue = bigInt(timeDiff);
 
@@ -36,16 +35,21 @@ export const blockHeaderPeriodVerify = (prevBlockHeader: BlockHeader, currentBlo
 
   const divResultToTwoWeek = multiplyDifference.divide(bigInt(twoWeekSec));
 
-  const newBits = targetToBits(divResultToTwoWeek.toString());
+  const maximumTargetValue = bitsToTarget(maxTargetHex);
 
-  if (nextBlock.bits.toString() !== newBits) {
+  let newBits;
+
+  if (divResultToTwoWeek.compare(maximumTargetValue) === 1) {
+    newBits = maxTargetHex;
+  } else {
+    newBits = parseInt(targetToBits(divResultToTwoWeek.toString()), 16);
+  }
+
+  if (nextBlock.bits !== newBits) {
     return false;
   }
 
-  console.log(newBits);
-  console.log(newBits);
-
-  const newTarget = bitsToTarget(Number("0x" + newBits));
+  const newTarget = bitsToTarget(testBlockHash);
 
   const blockHashInt = bigInt(parseInt(nextBlock.hash, 16));
 
@@ -72,7 +76,7 @@ export const targetToBits = (input: string) => {
   return compactHexArray.reverse().join("");
 };
 
-export const bitsToTarget = (bitsInput: number): BigInteger => {
+export const bitsToTarget = (bitsInput: number) => {
   let bits: BigInteger = bigInt(bitsInput);
 
   var sign = bits.and(0x00800000).shiftRight(24).toJSNumber();
@@ -86,7 +90,7 @@ export const bitsToTarget = (bitsInput: number): BigInteger => {
   return target;
 };
 
-export const difficultyIndex = (target: string): BigInteger => {
+export const difficultyIndex = (target: string) => {
   const limit = bigInt("00000000FFFF0000000000000000000000000000000000000000000000000000", 16);
   const targetValue = bigInt(target, 16);
 

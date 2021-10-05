@@ -22,17 +22,22 @@ exports.blockHeaderSingleVerify = blockHeaderSingleVerify;
 // n. block için (n + 1) % 2016 = 1 için
 const blockHeaderPeriodVerify = (prevBlockHeader, currentBlockHeader, nextBlock) => {
     const timeDiff = currentBlockHeader.timestamp - prevBlockHeader.timestamp;
-    const currentTargetValue = (0, exports.bitsToTarget)(prevBlockHeader.bits);
+    const currentTargetValue = (0, exports.bitsToTarget)(currentBlockHeader.bits);
     const timeDiffValue = bigInt(timeDiff);
     const multiplyDifference = currentTargetValue.multiply(timeDiffValue);
     const divResultToTwoWeek = multiplyDifference.divide(bigInt(twoWeekSec));
-    const newBits = (0, exports.targetToBits)(divResultToTwoWeek.toString());
-    if (nextBlock.bits.toString() !== newBits) {
+    const maximumTargetValue = (0, exports.bitsToTarget)(maxTargetHex);
+    let newBits;
+    if (divResultToTwoWeek.compare(maximumTargetValue) === 1) {
+        newBits = maxTargetHex;
+    }
+    else {
+        newBits = parseInt((0, exports.targetToBits)(divResultToTwoWeek.toString()), 16);
+    }
+    if (nextBlock.bits !== newBits) {
         return false;
     }
-    console.log(newBits);
-    console.log(newBits);
-    const newTarget = (0, exports.bitsToTarget)(Number("0x" + newBits));
+    const newTarget = (0, exports.bitsToTarget)(testBlockHash);
     const blockHashInt = bigInt(parseInt(nextBlock.hash, 16));
     if (newTarget.compare(blockHashInt) !== 1) {
         return false;
