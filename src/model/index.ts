@@ -9,7 +9,7 @@ import ServiceBit from "./ServiceBit";
 import VersionParams from "./VersionParams";
 import Message from "./Message";
 import Block from "./Block";
-import Transaction from "./Transaction";
+import {Transaction} from "./Transaction";
 import PeerParams from "./PeerParams";
 import PeersParams from "./PeersParams";
 import Opts from "./Opts";

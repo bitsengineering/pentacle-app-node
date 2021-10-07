@@ -1,16 +1,16 @@
-type Out = {
+export type Out = {
   value: number;
   script: Buffer;
 };
 
-type In = {
+export type In = {
   hash: Buffer;
   index: number;
   script: Buffer;
   sequence: number;
 };
 
-type Transaction = {
+export type Transaction = {
   version: 1 | 2;
   ins: In[];
   marker?: uint8; // witness transaction value = 0
@@ -19,4 +19,3 @@ type Transaction = {
   locktime: 0;
 };
 
-export default Transaction;

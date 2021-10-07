@@ -7,7 +7,7 @@ import { BlockHeader } from "../model/BlockHeader";
 import { blockHeaderPeriodVerify, blockHeaderSingleVerify } from "./feat";
 
 export class HeaderManagement {
-  peer!: Peer;
+  peer: Peer;
 
   constructor(newPeer: Peer) {
     this.peer = newPeer;

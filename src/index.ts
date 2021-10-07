@@ -2,11 +2,9 @@ import { Peer } from "./lib";
 import { Socket, connect as connectNet } from "net";
 import { Block, Header, Transaction } from "./model";
 import { dnsSeeds, GENESIS_BLOCK_HASH } from "./lib/constants";
-import { hashTx } from "./lib/utils";
-import { HeaderManagement } from "./lib/headerManagement";
-import { BlockHeader } from "./model/BlockHeader";
 import { readFileSync } from "fs";
-import { blockHeaderPeriodVerify } from "./lib/feat";
+import { In } from "./model/Transaction";
+import { TransactionManagement } from "./lib/transactionManagement";
 
 const peer = new Peer({ magic: 0xd9b4bef9, defaultPort: 8333 }, {});
 
@@ -84,32 +82,40 @@ const getPeerTransactionsByTx = (txids?: string[], witness?: boolean) => {
     });
 };
 
-const getPeerTransactionsByBlock = (blockHashes?: string[]) => {
-  const hashes: string[] = blockHashes || [
-    "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
-    // "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
-    // "3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868",
-    // "1d2362fba0bd11cabdae3e080dad5f0f4db43799052ccaedfe1823baf3b702da",
-  ];
+// const getPeerTransactionsByBlock = (blockHashes?: string[]) => {
+//   const hashes: string[] = blockHashes || [
+//     "0000000000000000002b0fcdc0bdedcc71fcce092633885628c3b50d43200002",
+//     // "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+//     // "3797c09006aaad367f7342e215820e499bfbb809f042c690fb7a71b8537c0868",
+//     // "1d2362fba0bd11cabdae3e080dad5f0f4db43799052ccaedfe1823baf3b702da",
+//   ];
 
-  return peer
-    .getTransactionsByBlock(hashes)
-    .then((transactions: Transaction[][]) => {
-      console.log("getTransactionsByBlock then");
-      console.log(transactions.length);
-      console.log("transactions version", transactions[0][0].version);
-      console.log("transactions ins.length", transactions[0][0].ins.length);
-    })
-    .catch((error) => {
-      console.log("getTransactionsByBlock catch");
-      console.log(error);
-    });
-};
+//   return peer
+//     .getTransactionsByBlock(hashes)
+//     .then((transactions: Transaction[][]) => {
+//       let totalIns : In[] = [];
+//       // let totalOuts : Out[] = [];
+
+//       transactions[0].forEach((tx:Transaction) => {
+//         tx.ins.forEach((value :In)=>{
+//           totalIns.push(value);
+//         });
+//         // tx.outs.forEach((value: any) => {
+//         //   totalOuts.push(value)
+//         // })
+//       })
+
+//     })
+//     .catch((error) => {
+//       console.log("getTransactionsByBlock catch");
+//       console.log(error);
+//     });
+// };
 
 const connectionListener = (socket: Socket) => {
   peer.connect(socket);
 
-  peer.readyOnce().then(() => {
+  peer.readyOnce().then(async () => {
     // getPeerHeaders();
 
     // getPeersBlocks().then((block: Block) => {
@@ -124,18 +130,29 @@ const connectionListener = (socket: Socket) => {
 
     // getPeerTransactionsByBlock();
 
-    const headerManagement = new HeaderManagement(peer);
+    // const headerManagement = new HeaderManagement(peer);
 
-    headerManagement.storeHeaders();
+    // headerManagement.storeHeaders();
 
     // getPeerTransactionsByTx();
+    const headers = getHeaders();
+
+    const transactionManagement = new TransactionManagement(peer);
+
+    const test = await transactionManagement.getTransactions(["000000000000000004ec466ce4732fe6f1ed1cddc2ed4b328fff5224276e3f6f"]);
+    console.log(test);
   });
 };
 
 const testIt = () => {
-  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[1] }, () => {
+  const socket: Socket = connectNet({ port: 8333, host: dnsSeeds[0] }, () => {
     connectionListener(socket);
   });
+};
+
+const getHeaders = () => {
+  const data = readFileSync("headers.json", "utf8");
+  return JSON.parse(data);
 };
 
 testIt();

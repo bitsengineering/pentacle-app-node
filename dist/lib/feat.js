@@ -6,8 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.difficultyIndex = exports.bitsToTarget = exports.targetToBits = exports.blockHeaderPeriodVerify = exports.blockHeaderSingleVerify = void 0;
 const wiz_data_1 = __importDefault(require("@script-wiz/wiz-data"));
 const bigInt = require("big-integer");
-// block 32256
-const testBlockHash = 0x00000004f2886a170adb7204cb0c7a824217dd24d11a74423d564c4e0904967;
 const twoWeekSec = 1209600;
 const maxTargetHex = 0x1d00ffff;
 const blockHeaderSingleVerify = (initialBlock, willVerifyBlock) => {
