@@ -4,8 +4,6 @@ import { BlockHeader } from "../model/BlockHeader";
 
 const bigInt = require("big-integer");
 
-// block 32256
-const testBlockHash = 0x00000004f2886a170adb7204cb0c7a824217dd24d11a74423d564c4e0904967;
 
 const twoWeekSec = 1209600;
 
@@ -24,7 +22,7 @@ export const blockHeaderSingleVerify = (initialBlock: BlockHeader, willVerifyBlo
 };
 
 // n. block için (n + 1) % 2016 = 1 için
-export const blockHeaderPeriodVerify = (prevBlockHeader: BlockHeader, currentBlockHeader: BlockHeader, nextBlock: BlockHeader): boolean => {
+export const blockHeaderPeriodVerify = (prevBlockHeader: BlockHeader, currentBlockHeader: BlockHeader, nextBlock: BlockHeader): boolean => {  
   const timeDiff = currentBlockHeader.timestamp - prevBlockHeader.timestamp;
 
   const currentTargetValue = bitsToTarget(currentBlockHeader.bits);
@@ -49,7 +47,7 @@ export const blockHeaderPeriodVerify = (prevBlockHeader: BlockHeader, currentBlo
     return false;
   }
 
-  const newTarget = bitsToTarget(testBlockHash);
+  const newTarget = bitsToTarget(newBits);
 
   const blockHashInt = bigInt(parseInt(nextBlock.hash, 16));
 

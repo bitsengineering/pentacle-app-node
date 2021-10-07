@@ -29,6 +29,7 @@ class HeaderManagement {
         return (0, fs_1.writeFileSync)("headers.json", json, "utf8");
     };
     getBlockHeaders = async (blockHash, lastBlockNumber) => {
+        console.log("getblockheaders");
         const headerses = await this.peer.getHeaders([blockHash]);
         return headerses[0].slice(0, -1).map((headers, index) => {
             return {

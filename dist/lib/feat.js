@@ -37,7 +37,7 @@ const blockHeaderPeriodVerify = (prevBlockHeader, currentBlockHeader, nextBlock)
     if (nextBlock.bits !== newBits) {
         return false;
     }
-    const newTarget = (0, exports.bitsToTarget)(testBlockHash);
+    const newTarget = (0, exports.bitsToTarget)(newBits);
     const blockHashInt = bigInt(parseInt(nextBlock.hash, 16));
     if (newTarget.compare(blockHashInt) !== 1) {
         return false;
