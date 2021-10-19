@@ -1,4 +1,4 @@
-import { bin2hex, hex2bin, sha256, swapendian } from "./utils";
+import { bin2hex, hex2bin, reverseHex, sha256v2 } from "./utils";
 
 const merklerootbinary = (txids: string[]): string => {
   let merkleroot;
@@ -15,7 +15,7 @@ const merklerootbinary = (txids: string[]): string => {
         const pair_second = txids[1];
 
         const pair = bin2hex(pair_first + pair_second);
-        const sha256Result = hex2bin(sha256(sha256(pair)));
+        const sha256Result = hex2bin(sha256v2(sha256v2(pair)));
 
         pairhashes.push(sha256Result);
 
@@ -27,7 +27,7 @@ const merklerootbinary = (txids: string[]): string => {
         const pair_second = txids[0];
 
         const pair = bin2hex(pair_first + pair_second);
-        const sha256Result = hex2bin(sha256(sha256(pair)));
+        const sha256Result = hex2bin(sha256v2(sha256v2(pair)));
 
         pairhashes.push(sha256Result);
 
@@ -46,7 +46,7 @@ export const merkleroot = (txids: string[]) => {
 
   // Convert txids in to little endian.
   txids.forEach((txid) => {
-    txidsLE.push(swapendian(txid));
+    txidsLE.push(reverseHex(txid));
   });
 
   //   Now convert each of these txids in to binary, because the hash function wants the binary value, not the hex.
@@ -58,7 +58,7 @@ export const merkleroot = (txids: string[]) => {
   merkleroot = merklerootbinary(txidsLEbinary);
 
   // Convert the merkle root in to hexadecimal and little-endian.
-  merkleroot = swapendian(bin2hex(merkleroot));
+  merkleroot = reverseHex(bin2hex(merkleroot));
 
   return merkleroot;
 };

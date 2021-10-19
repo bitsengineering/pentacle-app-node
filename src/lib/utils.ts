@@ -3,15 +3,15 @@ import { ServiceBit, Transaction } from "../model";
 import { serviceBits } from "./constants";
 import CryptoJS from "crypto-js";
 
-// const encodeHeader = require("bitcoin-protocol").types.header.encode;
-// const encodeTx = require("bitcoin-protocol").types.transaction.encode;
+const encodeHeader = require("bitcoin-protocol").types.header.encode;
+const encodeTx = require("bitcoin-protocol").types.transaction.encode;
 
-// export const sha256 = (data: any) => createHash("sha256").update(data).digest();
+export const sha256 = (data: any) => createHash("sha256").update(data).digest();
 
-// export const hashBlock = (header: any): Buffer => sha256(sha256(encodeHeader(header)));
-// export const hashTx = (tx: Transaction): Buffer => sha256(sha256(encodeTx(tx)));
+export const hashBlock = (header: any): Buffer => sha256(sha256(encodeHeader(header)));
+export const hashTx = (tx: Transaction): Buffer => sha256(sha256(encodeTx(tx)));
 
-// export const toHexString = (byteArray: Uint8Array) => Array.from(byteArray, (byte) => ("0" + (byte & 0xff).toString(16)).slice(-2)).join("");
+export const toHexString = (byteArray: Uint8Array) => Array.from(byteArray, (byte) => ("0" + (byte & 0xff).toString(16)).slice(-2)).join("");
 
 export const getServices = (buf: Buffer) => {
   const services: { [key: string]: boolean } = {};
@@ -26,7 +26,7 @@ export const getServices = (buf: Buffer) => {
   return services;
 };
 
-export const sha256 = (hex: string): string => {
+export const sha256v2 = (hex: string): string => {
   return CryptoJS.SHA256(CryptoJS.enc.Hex.parse(hex)).toString();
 };
 
@@ -110,4 +110,16 @@ export const bin2hex = (bin: string) => {
   return ret;
 };
 
-export const swapendian = (data: string) => Buffer.from(data, "hex").reverse().toString("hex");
+export const reverseHex = (value: string) => Buffer.from(value, "hex").reverse().toString("hex");
+
+export const buffer2hex = (obj: any): string => {
+  if (Buffer.isBuffer(obj)) return obj.toString("hex");
+  else if (Array.isArray(obj)) obj = obj.map(buffer2hex);
+  else if (typeof obj === "object") {
+    for (var k in obj) {
+      obj[k] = buffer2hex(obj[k]);
+    }
+  }
+
+  return obj;
+};
