@@ -8,34 +8,34 @@ const merklerootbinary = (txids: string[]): string => {
 
     return merkleroot;
   } else {
-    let pairhashes: string[] = [];
+    let pairHashes: string[] = [];
     while (txids.length > 0) {
       if (txids.length >= 2) {
-        const pair_first = txids[0];
-        const pair_second = txids[1];
+        const hash1 = txids[0];
+        const hash2 = txids[1];
 
-        const pair = bin2hex(pair_first + pair_second);
-        const sha256Result = hex2bin(sha256v2(sha256v2(pair)));
+        const concatHashes = bin2hex(hash1 + hash2);
+        const hash256 = hex2bin(sha256v2(sha256v2(concatHashes)));
 
-        pairhashes.push(sha256Result);
+        pairHashes.push(hash256);
 
         txids.splice(0, 2);
       }
 
       if (txids.length == 1) {
-        const pair_first = txids[0];
-        const pair_second = txids[0];
+        const hash1 = txids[0];
+        const hash2 = txids[0];
 
-        const pair = bin2hex(pair_first + pair_second);
-        const sha256Result = hex2bin(sha256v2(sha256v2(pair)));
+        const concatHashes = bin2hex(hash1 + hash2);
+        const hash256 = hex2bin(sha256v2(sha256v2(concatHashes)));
 
-        pairhashes.push(sha256Result);
+        pairHashes.push(hash256);
 
         txids.splice(0, 1);
       }
     }
 
-    return merklerootbinary(pairhashes);
+    return merklerootbinary(pairHashes);
   }
 };
 
