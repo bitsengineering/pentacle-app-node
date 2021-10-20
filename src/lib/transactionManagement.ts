@@ -1,8 +1,10 @@
 import { readFileSync } from "fs";
 import { Transaction } from "../model";
 import { BlockHeader } from "../model/BlockHeader";
-import { In } from "../model/Transaction";
+import { In, Out } from "../model/Transaction";
 import { Peer } from "./Peer";
+import * as bitcoin from "@bitmatrix/bitcodec/bitcoin";
+import { buffer2hex, reverseHex, sha256v2 } from "./utils";
 
 export class TransactionManagement {
   peer: Peer;
@@ -11,22 +13,47 @@ export class TransactionManagement {
     this.peer = newPeer;
   }
 
-  private getPeerTransactionsByBlock = async (blockHashes: string[]): Promise<In[] | undefined> => {
+  private getPeerTransactionsByBlock = async (blockHashes: string[]) => {
     try {
       const transactions = await this.peer.getTransactionsByBlock(blockHashes);
-      let totalIns: In[] = [];
-      // let totalOuts : Out[] = [];
+      let txIds: any = [];
 
       transactions[0].forEach((tx: Transaction) => {
-        tx.ins.forEach((value: In) => {
-          totalIns.push(value);
+        const txIns = tx.ins.map((txIn: In) => {
+          return {
+            previousOutput: {
+              hash: buffer2hex(txIn.hash),
+              index: txIn.index,
+            },
+            signatureScript: buffer2hex(txIn.script),
+            sequence: txIn.sequence,
+          };
         });
-        // tx.outs.forEach((value: any) => {
-        //   totalOuts.push(value)
-        // })
+
+        const txOuts = tx.outs.map((txOut: Out) => {
+          return {
+            value: txOut.value,
+            pkScript: buffer2hex(txOut.script),
+          };
+        });
+
+        const transaction = {
+          version: tx.version,
+          txIn: txIns,
+          txOut: txOuts,
+          lockTime: tx.locktime,
+        };
+
+        const txHex = bitcoin.TxCodec.encode(transaction);
+
+        const sha256Result = reverseHex(sha256v2(sha256v2(txHex)));
+
+        const transactionId = buffer2hex(sha256Result);
+
+        txIds.push(transactionId);
       });
 
-      return totalIns;
+      return txIds;
     } catch (error) {
       console.log("getTransactionsByBlock catch");
       console.log(error);
