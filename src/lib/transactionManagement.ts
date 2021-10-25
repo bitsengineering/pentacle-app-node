@@ -1,10 +1,10 @@
-import { readFileSync } from "fs";
+import { access, readFileSync, writeFileSync } from "fs";
 import { Transaction } from "../model";
-import { BlockHeader } from "../model/BlockHeader";
 import { In, Out } from "../model/Transaction";
 import { Peer } from "./Peer";
-import * as bitcoin from "@bitmatrix/bitcodec/bitcoin";
+import * as bitcoin from "@bitmatrix/bitcodec-bitcoin";
 import { buffer2hex, reverseHex, sha256v2 } from "./utils";
+import { merkleRootVerify } from "./feat";
 
 export class TransactionManagement {
   peer: Peer;
@@ -13,12 +13,32 @@ export class TransactionManagement {
     this.peer = newPeer;
   }
 
-  private getPeerTransactionsByBlock = async (blockHashes: string[]) => {
-    try {
-      const transactions = await this.peer.getTransactionsByBlock(blockHashes);
-      let txIds: any = [];
+  private readTransactions = () => {
+    const data = readFileSync("transactions.json", "utf8");
+    return JSON.parse(data);
+  };
 
-      transactions[0].forEach((tx: Transaction) => {
+  private writeTransaction = (transaction: Transaction) => {
+    const currentTransactions = this.readTransactions();
+
+    let newTransactions = [...currentTransactions];
+
+    newTransactions.push(transaction);
+    const json = JSON.stringify(newTransactions);
+    return writeFileSync("transaction.json", json, "utf8");
+  };
+
+  private getTransactionsByBlock = async (blockHash: string) => {
+    try {
+      const blocks = await this.peer.getBlocks([blockHash]);
+      let txIds: any = [];
+      let blockTxs: any = [];
+
+      const blockMerkleRoot = reverseHex(
+        buffer2hex(blocks[0].header.merkleRoot).toLocaleUpperCase()
+      );
+
+      blocks[0].transactions.forEach((tx: Transaction) => {
         const txIns = tx.ins.map((txIn: In) => {
           return {
             previousOutput: {
@@ -44,30 +64,52 @@ export class TransactionManagement {
           lockTime: tx.locktime,
         };
 
+        blockTxs.push(tx);
+
         const txHex = bitcoin.TxCodec.encode(transaction);
 
-        const sha256Result = reverseHex(sha256v2(sha256v2(txHex)));
+        const sha256Result = reverseHex(sha256v2(sha256v2(buffer2hex(txHex))));
 
         const transactionId = buffer2hex(sha256Result);
 
         txIds.push(transactionId);
       });
 
-      return txIds;
+      return { blockTxs, txIds, blockMerkleRoot };
     } catch (error) {
       console.log("getTransactionsByBlock catch");
       console.log(error);
     }
   };
 
-  private readHeaders = (): BlockHeader[] => {
-    const data = readFileSync("headers.json", "utf8");
-    return JSON.parse(data);
+  private storeHeaders = async (txs: Transaction[]) => {
+    access("transactions.json", async (notExist) => {
+      if (notExist) {
+        let newTransactions: Transaction[] = [];
+        txs.forEach(async (tx: Transaction) => {
+          newTransactions.push(tx);
+          const json = JSON.stringify(newTransactions);
+          return writeFileSync("transaction.json", json, "utf8");
+        });
+      } else {
+        txs.forEach(async (tx: Transaction) => {
+          this.writeTransaction(tx);
+        });
+      }
+    });
   };
 
-  getTransactions = async (blockHashes: string[]): Promise<In[] | undefined> => {
-    const transactions = await this.getPeerTransactionsByBlock(blockHashes);
+  getAndWriteTransactions = async (blockHash: string) => {
+    const block = await this.getTransactionsByBlock(blockHash);
 
-    return transactions;
+    if (block) {
+      const isVerify = merkleRootVerify(block.txIds, block.blockMerkleRoot);
+
+      if (isVerify) {
+        this.storeHeaders(block.blockTxs);
+      } else {
+        throw "Merkle Root Verify Error";
+      }
+    }
   };
 }
